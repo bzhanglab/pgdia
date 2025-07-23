@@ -1,104 +1,54 @@
-#!/usr/bin/env nextflow
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    nf-core/pgdia
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/nf-core/pgdia
-    Website: https://nf-co.re/pgdia
-    Slack  : https://nfcore.slack.com/channels/pgdia
-----------------------------------------------------------------------------------------
-*/
+nextflow.enable.dsl=2
 
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    IMPORT FUNCTIONS / MODULES / SUBWORKFLOWS / WORKFLOWS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
+include { NFCORE_RNAVAR } from './submodules/rnavar'
+include { RUN_STRINGTIE } from './workflows/stringtie/stringtie'
+include { generate_variant_db         } from './workflows/variant_db'
+include { generate_novel_isoform_db   } from './workflows/novel_isoform_db'
+include { combine_protein_dbs         } from './workflows/combine_db'
 
-include { PGDIA  } from './workflows/pgdia'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_pgdia_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_pgdia_pipeline'
-include { getGenomeAttribute      } from './subworkflows/local/utils_nfcore_pgdia_pipeline'
-
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    GENOME PARAMETER VALUES
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
-
-// TODO nf-core: Remove this line if you don't need a FASTA file
-//   This is an example of how to use getGenomeAttribute() to fetch parameters
-//   from igenomes.config using `--genome`
-params.fasta = getGenomeAttribute('fasta')
-
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    NAMED WORKFLOWS FOR PIPELINE
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
-
-//
-// WORKFLOW: Run main analysis pipeline depending on type of input
-//
-workflow NFCORE_PGDIA {
-
-    take:
-    samplesheet // channel: samplesheet read in from --input
-
-    main:
-
-    //
-    // WORKFLOW: Run pipeline
-    //
-    PGDIA (
-        samplesheet
-    )
-    emit:
-    multiqc_report = PGDIA.out.multiqc_report // channel: /path/to/multiqc_report.html
-}
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    RUN MAIN WORKFLOW
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
 
 workflow {
 
-    main:
-    //
-    // SUBWORKFLOW: Run initialisation tasks
-    //
-    PIPELINE_INITIALISATION (
-        params.version,
-        params.validate_params,
-        params.monochrome_logs,
-        args,
-        params.outdir,
-        params.input
+    // Parse the samplesheet for all samples
+    samplesheet_ch = Channel
+    .fromPath(params.samplesheet)
+    .splitCsv(header: true)
+    .map { row ->
+        def meta = [ id: row.sample, strandedness: row.strandedness ]
+        [ meta, file(row.fastq_1), file(row.fastq_2) ]
+    }
+
+
+    // 1. Run nf-core/rnavar (assumes samplesheet CSV matches expected format)
+    NFCORE_RNAVAR(
+        Channel.fromPath(params.samplesheet),
+        Channel.value(false)
     )
 
-    //
-    // WORKFLOW: Run main workflow
-    //
-    NFCORE_PGDIA (
-        PIPELINE_INITIALISATION.out.samplesheet
+    // 2. StringTie on markdup BAMs from RNAVAR
+    RUN_STRINGTIE(
+        NFCORE_RNAVAR.out.markdup_bams,   // emits: [ val(meta), path(bam), path(bai) ]
+        params.gtf
     )
-    //
-    // SUBWORKFLOW: Run completion tasks
-    //
-    PIPELINE_COMPLETION (
-        params.email,
-        params.email_on_fail,
-        params.plaintext_email,
-        params.outdir,
-        params.monochrome_logs,
-        params.hook_url,
-        NFCORE_PGDIA.out.multiqc_report
+
+    // 3. Generate novel isoform DBs from StringTie GTFs
+    generate_novel_isoform_db(
+        RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
     )
+
+    // 4. Variant DB from annotated VCFs
+    generate_variant_db(
+        samplesheet_ch.meta.id,                   // or meta.id if running for all samples
+        NFCORE_RNAVAR.out.annotated_vcfs
+    )
+
+    variant_fasta = generate_variant_db.out.out
+
+    // Step 2: Novel isoform-based DB generation
+    novel_output = generate_novel_isoform_db(params.sample_id)
+
+    // Step 3: Combine protein DBs
+    combine_protein_dbs(params.sample_id, variant_fasta, novel_output.out)
 }
 
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    THE END
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
+
