@@ -9,26 +9,20 @@ include { combine_protein_dbs         } from './workflows/combine_db'
 
 workflow {
 
-    // Parse the samplesheet for all samples
-    samplesheet_ch = Channel
-    .fromPath(params.samplesheet)
-    .splitCsv(header: true)
-    .map { row ->
-        def meta = [ id: row.sample, strandedness: row.strandedness ]
-        [ meta, file(row.fastq_1), file(row.fastq_2) ]
-    }
+    samplesheet_path = file(params.input, checkIfExists: true)
+
 
 
     // 1. Run nf-core/rnavar (assumes samplesheet CSV matches expected format)
     NFCORE_RNAVAR(
-        Channel.fromPath(params.samplesheet),
+        Channel.fromPath(samplesheet_path),
         Channel.value(false)
     )
 
     // 2. StringTie on markdup BAMs from RNAVAR
     RUN_STRINGTIE(
         NFCORE_RNAVAR.out.markdup_bams,   // emits: [ val(meta), path(bam), path(bai) ]
-        params.gtf
+        file(params.gtf)
     )
 
     // 3. Generate novel isoform DBs from StringTie GTFs
