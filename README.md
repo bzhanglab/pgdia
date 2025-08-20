@@ -1,5 +1,3 @@
-<h1>PG-DIA</h1>
-
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A524.10.5-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
 [![nf-core template version](https://img.shields.io/badge/nf--core_template-3.3.2-green?style=flat&logo=nfcore&logoColor=white&color=%2324B064&link=https%3A%2F%2Fnf-co.re)](https://github.com/nf-core/tools/releases/tag/3.3.2)
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
@@ -12,7 +10,7 @@
 
 **nf-core/pgdia** is a bioinformatics pipeline for customized protein database construction using RNA-Seq data 
 
-![Pipeline Overview](docs/images/pgdia_workflow.pngirnaseq.png)
+![Pipeline Overview](docs/images/pgdia_workflow.png)
 
 Sample run:
 
