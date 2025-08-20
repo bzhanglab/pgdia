@@ -57,7 +57,7 @@ To see the results of an example test run with a full size dataset refer to the 
 
 ## Credits
 
-nf-core/pgdia was originally written by Wenrong Chen.
+pgdia was originally written by Wenrong Chen.
 
 
 
