@@ -8,7 +8,7 @@
 
 ## Introduction
 
-**nf-core/pgdia** is a bioinformatics pipeline for customized protein database construction using RNA-Seq data 
+**pgdia** is a bioinformatics pipeline for customized protein database construction using RNA-Seq data 
 
 ![Pipeline Overview](docs/images/pgdia_workflow.png)
 
@@ -39,7 +39,7 @@ Each row represents a fastq file (single-end) or a pair of fastq files (paired e
 Now, you can run the pipeline using:
 
 ```bash
-nextflow run nf-core/pgdia \
+nextflow run pgdia \
    -profile <docker/singularity/.../institute> \
    --input samplesheet.csv \
    --outdir <OUTDIR>
