@@ -36,7 +36,7 @@ process gen_var_db {
       --include_consequences missense_variant,frameshift_variant,inframe_insertion,inframe_deletion \
       --af_field AF \
       --af_threshold 0.05 \
-      -o results/${sample_id}_var_peptides.fa
+      -o results/variant_db/${sample_id}_var_peptides.fa
 
     """
 }
