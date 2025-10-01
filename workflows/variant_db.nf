@@ -40,7 +40,7 @@ process gen_var_db {
 
     """
 }
-
+ 
 process mod_var_peptides {
     tag "${sample_id}"
 
