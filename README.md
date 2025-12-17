@@ -23,16 +23,17 @@ nextflow run pgdia -r main -latest -profile docker --input testing/samplesheet.c
 > [!NOTE]
 > If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` before running the workflow on actual data.
 
-First, prepare a samplesheet with your input data that looks as follows:
+First, prepare a samplesheet with your input data that looks as follows. The pipeline accepts either raw FASTQs (`fastq_1`/`fastq_2`) or pre-aligned BAMs (`bam` + optional `bai`) on a per-sample basis. Leave the unused columns blank.
 
 `samplesheet.csv`:
 
 ```csv
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
+sample,fastq_1,fastq_2,bam,bai,strandedness
+CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,,,forward
+TUMOR_REP1,,,,/path/to/aligned/TUMOR_REP1.markdup.bam,/path/to/aligned/TUMOR_REP1.markdup.bam.bai,unstranded
 ```
 
-Each row represents a fastq file (single-end) or a pair of fastq files (paired end).
+Each row represents a sequencing run. Provide either the read pair or the BAM (plus `.bai` index) for that sample. The optional `strandedness` column controls the StringTie run (`forward`, `reverse`, or `unstranded`).
 
 -->
 
@@ -62,5 +63,4 @@ pgdia was originally written by Wenrong Chen.
 
 
 ## Citations
-
 

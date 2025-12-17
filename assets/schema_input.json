@@ -26,8 +26,25 @@
                 "exists": true,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
                 "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+            },
+            "bam": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.bam$",
+                "errorMessage": "Aligned reads must be provided as a coordinate-sorted BAM file ending with '.bam' and without spaces in the path"
+            },
+            "bai": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.bai$",
+                "errorMessage": "If a BAM is supplied, provide the matching BAI index ending with '.bam.bai'"
             }
         },
-        "required": ["sample", "fastq_1"]
+        "oneOf": [
+            { "required": ["sample", "fastq_1"] },
+            { "required": ["sample", "bam"] }
+        ]
     }
 }

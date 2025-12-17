@@ -13,15 +13,32 @@ workflow {
     samplesheet_path = file(params.input, checkIfExists: true)
 
     samplesheet_ch = Channel
-    .fromPath(params.input, checkIfExists: true)
-    .splitCsv(header: true)
-    .map { row ->
-        def meta = [
-            id: row.sample,                  // sample_id
-            strandedness: row.strandedness ?: "unstranded"
-        ]
-        tuple(meta, file(row.fastq_1), file(row.fastq_2))
-    }
+        .fromPath(params.input, checkIfExists: true)
+        .splitCsv(header: true)
+        .map { row ->
+            def meta = [
+                id          : row.sample,                  // sample_id
+                strandedness: row.strandedness ?: "unstranded"
+            ]
+
+            def columns = row.keySet()
+            def hasFastqColumns = ['fastq_1', 'fastq_2'].any { columns.contains(it) }
+            def hasBamColumns   = ['bam', 'bai'].any { columns.contains(it) }
+
+            def useFastq = hasFastqColumns && row.fastq_1
+            def useBam   = !useFastq && hasBamColumns && row.bam
+
+            if (!useFastq && !useBam) {
+                error("Samplesheet row for '${meta.id}' must provide either FASTQ (fastq_1/fastq_2) or BAM/BAI columns.")
+            }
+
+            def fastq1 = useFastq && row.fastq_1 ? file(row.fastq_1, checkIfExists: true) : null
+            def fastq2 = useFastq && row.fastq_2 ? file(row.fastq_2, checkIfExists: true) : null
+            def bam    = useBam   && row.bam     ? file(row.bam,     checkIfExists: true) : null
+            def bai    = useBam   && row.bai     ? file(row.bai,     checkIfExists: true) : null
+
+            tuple(meta, fastq1, fastq2, bam, bai)
+        }
     gene_annotation_gtf = file(params.gtf, checkIfExists: true)
 
 
@@ -56,5 +73,3 @@ workflow {
     // Step 3: Combine protein DBs
     combine_protein_dbs(samplesheet_ch.meta.id, variant_fasta, isoform_fasta)
 }
-
-
