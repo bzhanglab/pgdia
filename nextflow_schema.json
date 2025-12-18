@@ -88,7 +88,14 @@
                     "fa_icon": "fas fa-ban",
                     "hidden": true,
                     "default": "s3://ngi-igenomes/igenomes/"
+                },
+                "feature_type": {
+                    "type": "string",
+                    "description": "GTF feature name used when generating the exon BED (e.g. exon, CDS, gene).",
+                    "default": "exon",
+                    "fa_icon": "fas fa-list"
                 }
+
             }
         },
         "institutional_config_options": {
