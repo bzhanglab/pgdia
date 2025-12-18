@@ -39,7 +39,7 @@ process get_novel_transcripts {
   script:
     """
     set -euo pipefail
-    python3 ${params.get_transcript_py ?: "./src/get_transcript.py"} \
+    python3 ${params.get_transcript_py ?: "./bin/get_transcript.py"} \
       $ids_list $stringtie_gtf ${id}_novel_isoforms.gtf
     """
 }
