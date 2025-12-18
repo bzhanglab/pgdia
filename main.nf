@@ -12,7 +12,7 @@ workflow {
 
     samplesheet_path = file(params.input, checkIfExists: true)
 
-    samplesheet_ch = channel
+    samplesheet_ch = Channel
         .fromPath(params.input, checkIfExists: true)
         .splitCsv(header: true)
         .map { row ->
@@ -22,8 +22,8 @@ workflow {
             ]
 
             def columns = row.keySet()
-            def hasFastqColumns = ['fastq_1', 'fastq_2'].any { columns.contains(it) }
-            def hasBamColumns   = ['bam', 'bai'].any { columns.contains(it) }
+            def hasFastqColumns = ['fastq_1', 'fastq_2'].any { col -> columns.contains(col) }
+            def hasBamColumns   = ['bam', 'bai'].any { col -> columns.contains(col) }
 
             def useFastq = hasFastqColumns && row.fastq_1
             def useBam   = !useFastq && hasBamColumns && row.bam
@@ -39,6 +39,7 @@ workflow {
 
             tuple(meta, fastq1, fastq2, bam, bai)
         }
+        .view { row -> "Samplesheet entry: ${row[0].id}" }
     gene_annotation_gtf = file(params.gtf, checkIfExists: true)
 
     id_ch = samplesheet_ch.map { meta, fastq1, fastq2, bam, bai -> meta.id }
@@ -57,19 +58,14 @@ workflow {
 
     // 3. Generate novel isoform DBs from StringTie GTFs
     def novel_isoform_run = generate_novel_isoform_db(
-    RUN_STRINGTIE.out.stringtie_gtf
+        RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
     )
 
-    // 4. Variant DB from annotated VCFs
-    generate_variant_db(
+    def variant_db_run = generate_variant_db(
         id_ch,                   // or meta.id if running for all samples
         NFCORE_RNAVAR.out.annotated_vcf
     )
 
-    def variant_db_run = generate_variant_db(
-    id_ch,
-    NFCORE_RNAVAR.out.annotated_vcf
-    )
     variant_fasta = variant_db_run.out.variant_db
     isoform_fasta = novel_isoform_run.out.isoform_db
 
