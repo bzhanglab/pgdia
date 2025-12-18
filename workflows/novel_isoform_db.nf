@@ -18,9 +18,14 @@ workflow generate_novel_isoform_db {
 
     // 2. Extract .tmap and pass sample id and stringtie GTF
     tmap_and_gtf_ch = gffcompare_results.out.combine(annotated_gtf).map { files, pair ->
-        def tmap = files.find { it.name.endsWith('.tmap') }
+        def tmap = files.find { file -> file.name.endsWith('.tmap') }
         def meta = pair[0]
         def stringtie_gtf = pair[1]
+
+        if (!tmap) {
+            error("GFFCompare output missing .tmap for sample '${meta.id}'")
+        }
+
         tuple(meta.id, tmap, stringtie_gtf)
     }
 
