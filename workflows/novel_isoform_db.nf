@@ -86,8 +86,12 @@ workflow generate_novel_isoform_db {
      *   2) singleton tuple(meta2), path(fasta), path(fai)
      *   3) singleton tuple(meta3), path(reference_gtf)
      */
-    if (!params.fasta) {
-        error("Missing required parameter --fasta for novel isoform generation.")
+    def fasta_path = params.fasta ?: (params.genomes && params.genome && params.genomes.containsKey(params.genome) ? params.genomes[params.genome].fasta : null)
+    def fai_path   = params.fasta_fai ?: (fasta_path ? fasta_path + '.fai' : null)
+    def ref_gtf    = params.gtf ?: (params.genomes && params.genome && params.genomes.containsKey(params.genome) ? params.genomes[params.genome].gtf : null)
+
+    if (!fasta_path) {
+        error("Missing required parameter --fasta for novel isoform generation (and no genome-configured fasta found).")
     }
 
     ch_gtf = annotated_gtf
@@ -96,13 +100,13 @@ workflow generate_novel_isoform_db {
       .value(
           tuple(
               [id: 'genome'],
-              file(params.fasta,      checkIfExists: true),
-              file(params.fasta_fai ?: params.fasta + '.fai', checkIfExists: true)
+              file(fasta_path, checkIfExists: true),
+              file(fai_path,   checkIfExists: true)
           )
       )
 
     ch_refgtf = Channel
-      .value( tuple([id: 'refgtf'], file(params.gtf, checkIfExists: true)) )
+      .value( tuple([id: 'refgtf'], file(ref_gtf ?: fasta_path, checkIfExists: true)) )
 
     // 1) Run gffcompare
     gffcompare_results = GFFCOMPARE(ch_gtf, ch_genome, ch_refgtf)
@@ -125,7 +129,7 @@ workflow generate_novel_isoform_db {
 
     // 6) gffread to fasta (kept consistent with earlier wiring)
     novel_fasta_ch = novel_gtf_ch
-      .map { id, novel_gtf -> tuple(id, novel_gtf, file(params.fasta, checkIfExists: true)) } \
+      .map { id, novel_gtf -> tuple(id, novel_gtf, file(fasta_path, checkIfExists: true)) } \
       | GFFREAD
 
     // 8) TransDecoder.LongOrfs
