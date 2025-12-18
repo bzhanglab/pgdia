@@ -56,8 +56,8 @@ workflow {
     )
 
     // 3. Generate novel isoform DBs from StringTie GTFs
-    generate_novel_isoform_db(
-        RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
+    def novel_isoform_run = generate_novel_isoform_db(
+    RUN_STRINGTIE.out.stringtie_gtf
     )
 
     // 4. Variant DB from annotated VCFs
@@ -66,10 +66,12 @@ workflow {
         NFCORE_RNAVAR.out.annotated_vcf
     )
 
-    variant_fasta = generate_variant_db.out.variant_db
-
-    // Step 2: Novel isoform-based DB generation
-    isoform_fasta = generate_novel_isoform_db(id_ch).out.isoform_db
+    def variant_db_run = generate_variant_db(
+    id_ch,
+    NFCORE_RNAVAR.out.annotated_vcf
+    )
+    variant_fasta = variant_db_run.out.variant_db
+    isoform_fasta = novel_isoform_run.out.isoform_db
 
     // Step 3: Combine protein DBs
     
