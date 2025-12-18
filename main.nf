@@ -12,7 +12,7 @@ workflow {
 
     samplesheet_path = file(params.input, checkIfExists: true)
 
-    samplesheet_ch = Channel
+    samplesheet_ch = channel
         .fromPath(params.input, checkIfExists: true)
         .splitCsv(header: true)
         .map { row ->
@@ -41,6 +41,7 @@ workflow {
         }
     gene_annotation_gtf = file(params.gtf, checkIfExists: true)
 
+    id_ch = samplesheet_ch.map { meta, fastq1, fastq2, bam, bai -> meta.id }
 
     // 1. Run nf-core/rnavar (assumes samplesheet CSV matches expected format)
     NFCORE_RNAVAR(
@@ -61,15 +62,20 @@ workflow {
 
     // 4. Variant DB from annotated VCFs
     generate_variant_db(
-        samplesheet_ch.meta.id,                   // or meta.id if running for all samples
+        id_ch,                   // or meta.id if running for all samples
         NFCORE_RNAVAR.out.annotated_vcf
     )
 
     variant_fasta = generate_variant_db.out.variant_db
 
     // Step 2: Novel isoform-based DB generation
-    isoform_fasta = generate_novel_isoform_db(samplesheet_ch.meta.id).out.isoform_db
+    isoform_fasta = generate_novel_isoform_db(id_ch).out.isoform_db
 
     // Step 3: Combine protein DBs
-    combine_protein_dbs(samplesheet_ch.meta.id, variant_fasta, isoform_fasta)
+    
+    combine_protein_dbs(
+        id_ch,
+        variant_fasta,
+        isoform_fasta
+    )
 }
