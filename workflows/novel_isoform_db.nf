@@ -113,7 +113,13 @@ workflow generate_novel_isoform_db {
 
     // 2) Pair each sample's .tmap with its original stringtie gtf
     //    gffcompare_results.out.tmap: tuple(meta), path(tmap)
-    tmap_and_gtf_ch = gffcompare_results.out.tmap
+    def tmap_ch = gffcompare_results.out.tmap
+    if (!(tmap_ch?.respondsTo('map'))) {
+        // If the process didn't emit a channel (e.g. no tmap produced), fall back to empty channel
+        tmap_ch = Channel.empty()
+    }
+
+    tmap_and_gtf_ch = tmap_ch
       .map { meta, tmap -> tuple(meta.id, tmap) }
       .join( annotated_gtf.map { meta, gtf -> tuple(meta.id, gtf) } )
       .map { id, tmap, gtf -> tuple(id, tmap, gtf) }
