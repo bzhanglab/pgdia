@@ -32,6 +32,13 @@ process extract_ids {
 
 process get_novel_transcripts {
   tag "${id}"
+
+  conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
+  container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/python:3.8.3' :
+        'quay.io/biocontainers/python:3.8.3' }"
+
+  
   input:
     tuple val(id), path(ids_list), path(stringtie_gtf)
   output:
@@ -45,30 +52,44 @@ process get_novel_transcripts {
 
 process transdecoder_longorfs {
   tag "${id}"
+
   input:
     tuple val(id), path(fasta)
   output:
-    tuple val(id), path('novel_transcripts.fasta.transdecoder_dir')
+    tuple val(id), path("${id}.transdecoder_dir")
   script:
     """
     set -euo pipefail
-    TransDecoder.LongOrfs -t $fasta -m 30 -O .
-    mkdir -p novel_transcripts.fasta.transdecoder_dir
-    mv novel_transcripts.fasta.transdecoder* novel_transcripts.fasta.transdecoder_dir/
+    
+
+    TransDecoder.LongOrfs -t ${fasta} -m 30 -O .
+
+    mkdir -p ${id}.transdecoder_dir
+    mv *.transdecoder* ${id}.transdecoder_dir/
+
     """
 }
 
 process transdecoder_predict {
   tag "${id}"
+
   input:
-    tuple val(id), path(longorfs_dir)
+    tuple val(id), path(transdecoder_dir)
   output:
-    path('*')
+    tuple val(id), path("${id}.transdecoder.fasta")
+  
   script:
     """
     set -euo pipefail
-    fasta=\$(ls -1 \$longorfs_dir/../novel_transcripts.fasta | head -n 1)
+
+    fasta=\$(ls -1 *.fasta | head -n 1)
+
     TransDecoder.Predict -t \$fasta --retain_long_orfs_length 30 -O .
+
+    # TransDecoder outputs a peptide fasta like: <fasta>.transdecoder.pep
+    pep=\$(ls -1 *.transdecoder.pep | head -n 1)
+    cp "\$pep" "${id}.transdecoder.fasta"
+
     """
 }
 
@@ -138,19 +159,20 @@ workflow generate_novel_isoform_db {
       tuple([id: id], novel_gtf)
     }
 
-    gffread_res = GFFREAD(
+    GFFREAD(
       gffread_in_ch,
       Channel.value(file(params.fasta, checkIfExists: true))
     )
 
-    novel_fasta_ch = gffread_res.out.gffread_fasta
-    // novel_fasta_ch: tuple( meta, path("*.fasta") )
+    novel_fasta_ch = GFFREAD.out.gffread_fasta
+    novel_fasta_by_id_ch = novel_fasta_ch.map { meta, fa -> tuple(meta.id, fa) }
+
     // 8) TransDecoder.LongOrfs
-    longorfs_ch = transdecoder_longorfs(novel_fasta_ch)
+    longorfs_ch = transdecoder_longorfs(novel_fasta_by_id_ch)
 
     // 9) TransDecoder.Predict
-    predict_ch = transdecoder_predict(longorfs_ch)
+    predict_pep_ch = transdecoder_predict(longorfs_ch)
 
   emit:
-    isoform_db = predict_ch.out
+    isoform_db = predict_pep_ch.out
 }
