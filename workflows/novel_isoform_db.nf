@@ -39,8 +39,7 @@ process get_novel_transcripts {
   script:
     """
     set -euo pipefail
-    python3 ${params.get_transcript_py ?: "./bin/get_transcript.py"} \
-      $ids_list $stringtie_gtf ${id}_novel_isoforms.gtf
+    get_transcript.py $ids_list $stringtie_gtf ${id}_novel_isoforms.gtf
     """
 }
 
@@ -131,16 +130,13 @@ workflow generate_novel_isoform_db {
     ids_list_ch = extract_ids(filtered_ids_ch)
 
     // 5) extract novel isoforms gtf
-    novel_gtf_ch = get_novel_transcripts(ids_list_ch)
+    novel_gtf_ch = get_novel_transcripts(ids_list_ch, )
 
     // 6) gffread to fasta (kept consistent with earlier wiring)
-    def ch_novel_gtf = novel_gtf_ch.map { id, novel_gtf -> tuple([id:id], novel_gtf) }
-    def ch_fasta     = Channel.value(file(fasta_path, checkIfExists: true))
+    novel_fasta_ch = novel_gtf_ch.map { id, novel_gtf ->
+    tuple(id, novel_gtf, file(params.fasta))
+    } | GFFREAD
 
-    novel_fasta_ch = GFFREAD(ch_novel_gtf, ch_fasta)
-      .out
-      .gffread_fasta
-      .map { meta, fasta -> tuple(meta.id ?: meta, fasta) }
 
     // 8) TransDecoder.LongOrfs
     longorfs_ch = transdecoder_longorfs(novel_fasta_ch)
