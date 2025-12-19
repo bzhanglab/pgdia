@@ -134,9 +134,13 @@ workflow generate_novel_isoform_db {
     novel_gtf_ch = get_novel_transcripts(ids_list_ch)
 
     // 6) gffread to fasta (kept consistent with earlier wiring)
-    novel_fasta_ch = novel_gtf_ch
-      .map { id, novel_gtf -> tuple(id, novel_gtf, file(fasta_path, checkIfExists: true)) } \
-      | GFFREAD
+    def ch_novel_gtf = novel_gtf_ch.map { id, novel_gtf -> tuple([id:id], novel_gtf) }
+    def ch_fasta     = Channel.value(file(fasta_path, checkIfExists: true))
+
+    novel_fasta_ch = GFFREAD(ch_novel_gtf, ch_fasta)
+      .out
+      .gffread_fasta
+      .map { meta, fasta -> tuple(meta.id ?: meta, fasta) }
 
     // 8) TransDecoder.LongOrfs
     longorfs_ch = transdecoder_longorfs(novel_fasta_ch)
