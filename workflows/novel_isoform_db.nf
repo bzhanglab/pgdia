@@ -174,5 +174,5 @@ workflow generate_novel_isoform_db {
     predict_pep_ch = transdecoder_predict(longorfs_ch)
 
   emit:
-    isoform_db = predict_pep_ch.out
+    isoform_db = predict_pep_ch
 }
