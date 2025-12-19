@@ -1,7 +1,7 @@
 workflow generate_variant_db {
+    
     take:
-    sample_id
-    annotated_vcf
+    annotated_vcf   // channel: [ val(meta), path(vcf) ]  (meta.id is sample id)
 
     main:
     def ref_fasta = params.fasta ?: (params.genomes && params.genome && params.genomes.containsKey(params.genome) ? params.genomes[params.genome].fasta : null)
@@ -14,31 +14,32 @@ workflow generate_variant_db {
         error("Missing required reference GTF: set --gtf or provide a genome entry with a gtf path.")
     }
 
-    var_peptides_ch = gen_var_db(sample_id, annotated_vcf)
-    mod = mod_var_peptides(var_peptides_ch)
+    // 1) generate variant peptide fasta
+    var_peptides_ch = gen_var_db(annotated_vcf, ref_fasta, ref_gtf)
+
+    // 2) add AA-change annotation / modify peptides
+    mod_peptides_ch = mod_var_peptides(var_peptides_ch)
 
     emit:
-    variant_db = mod.out
+    variant_db = mod_peptides_ch
 }
 
+
 process gen_var_db {
-  tag "${sample_id}"
+  tag {meta.id}
 
-    input:
-    val sample_id 
-    path annotated_vcf
+  input:
+    tuple val(meta), path(annotated_vcf)
+    path ref_fasta
+    path ref_gtf
 
-    output:
-    tuple val(sample_id),
-          path(annotated_vcf),
-          path("results/variant_db/${sample_id}_var_peptides.fa")
+  output:
+    tuple val(meta), path(annotated_vcf), path("${meta.id}_var_peptides.fa")
 
-    script:
+  script:
     """
     set -euo pipefail
-    mkdir -p results/variant_db
 
-    # run the CLI tool to generate protein DB from VCF
     python3 -m pypgatk.pypgatk_cli vcf-to-proteindb \
       --vcf "${annotated_vcf}" \
       --input_fasta "${ref_fasta}" \
@@ -46,30 +47,28 @@ process gen_var_db {
       --include_consequences missense_variant,frameshift_variant,inframe_insertion,inframe_deletion \
       --af_field AF \
       --af_threshold 0.05 \
-      -o results/variant_db/${sample_id}_var_peptides.fa
-
+      -o ${meta.id}_var_peptides.fa
     """
 }
+
  
 process mod_var_peptides {
-    tag "${sample_id}"
+  tag {meta.id}
 
-    input:
-    tuple val(sample_id),
-          path(annotated_vcf),
-          path(var_peptides)
+  input:
+    tuple val(meta), path(annotated_vcf), path(var_peptides)
 
-    output:
-    path("results/variant_db/${sample_id}_var_modified_peptides.fa")
+  output:
+    tuple val(meta), path("${meta.id}_var_modified_peptides.fa")
 
-    script:
+  script:
     """
     set -euo pipefail
-    mkdir -p results/variant_db
 
     get_var_aa_change.py \
       "${annotated_vcf}" \
       "${var_peptides}" \
-      "results/variant_db/${sample_id}_var_modified_peptides.fa"
+      "${meta.id}_var_modified_peptides.fa"
     """
 }
+

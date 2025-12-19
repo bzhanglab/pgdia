@@ -62,9 +62,9 @@ workflow {
     )
 
     def variant_db_run = generate_variant_db(
-        id_ch,                   // or meta.id if running for all samples
-        NFCORE_RNAVAR.out.annotated_vcf
+    NFCORE_RNAVAR.out.annotated_vcf
     )
+
 
     variant_fasta = variant_db_run.out.variant_db
     isoform_fasta = novel_isoform_run.out.isoform_db
