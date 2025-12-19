@@ -130,14 +130,21 @@ workflow generate_novel_isoform_db {
     ids_list_ch = extract_ids(filtered_ids_ch)
 
     // 5) extract novel isoforms gtf
-    novel_gtf_ch = get_novel_transcripts(ids_list_ch, )
+    novel_gtf_ch = get_novel_transcripts(ids_list_ch)
+    // novel_gtf_ch: tuple( id, path("${id}_novel_isoforms.gtf") )
 
     // 6) gffread to fasta (kept consistent with earlier wiring)
-    novel_fasta_ch = novel_gtf_ch.map { id, novel_gtf ->
-    tuple(id, novel_gtf, file(params.fasta))
-    } | GFFREAD
+    gffread_in_ch = novel_gtf_ch.map { id, novel_gtf ->
+      tuple([id: id], novel_gtf)
+    }
 
+    gffread_res = GFFREAD(
+      gffread_in_ch,
+      Channel.value(file(params.fasta, checkIfExists: true))
+    )
 
+    novel_fasta_ch = gffread_res.out.gffread_fasta
+    // novel_fasta_ch: tuple( meta, path("*.fasta") )
     // 8) TransDecoder.LongOrfs
     longorfs_ch = transdecoder_longorfs(novel_fasta_ch)
 
