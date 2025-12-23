@@ -15,40 +15,47 @@ workflow MAIN {
         gene_annotation_gtf
 
     main:
-        samplesheet_ch = Channel
+        parsed_samplesheet = Channel
             .fromPath(samplesheet_path, checkIfExists: true)
             .splitCsv(header: true)
             .map { row ->
-                def meta = [
-                    id          : row.sample,                  // sample_id
-                    strandedness: row.strandedness ?: "unstranded"
-                ]
-
-                def columns = row.keySet()
-                def hasFastqColumns = ['fastq_1', 'fastq_2'].any { col -> columns.contains(col) }
-                def hasBamColumns   = ['bam', 'bai'].any { col -> columns.contains(col) }
-
-                def useFastq = hasFastqColumns && row.fastq_1
-                def useBam   = !useFastq && hasBamColumns && row.bam
-
-                if (!useFastq && !useBam) {
-                    error("Samplesheet row for '${meta.id}' must provide either FASTQ (fastq_1/fastq_2) or BAM/BAI columns.")
+                def id = row.sample ?: row.id ?: row.sample_id
+                if (!id) {
+                    error("Samplesheet row is missing a 'sample' identifier.")
                 }
 
-                def fastq1 = useFastq && row.fastq_1 ? file(row.fastq_1, checkIfExists: true) : null
-                def fastq2 = useFastq && row.fastq_2 ? file(row.fastq_2, checkIfExists: true) : null
-                def bam    = useBam   && row.bam     ? file(row.bam,     checkIfExists: true) : null
-                def bai    = useBam   && row.bai     ? file(row.bai,     checkIfExists: true) : null
+                def hasFastq = row.fastq_1
+                def hasBam   = !hasFastq && row.bam
+
+                if (!hasFastq && !hasBam) {
+                    error("Samplesheet row for '${id}' must provide either FASTQ (fastq_1/fastq_2) or BAM/BAI columns.")
+                }
+                if (hasFastq && hasBam) {
+                    error("Samplesheet row for '${id}' must not mix FASTQ and BAM inputs.")
+                }
+
+                def fastq1 = hasFastq ? file(row.fastq_1, checkIfExists: true) : []
+                def fastq2 = (hasFastq && row.fastq_2) ? file(row.fastq_2, checkIfExists: true) : []
+                def bam    = hasBam   ? file(row.bam,   checkIfExists: true) : []
+                def bai    = (hasBam && row.bai) ? file(row.bai, checkIfExists: true) : []
+
+                def meta = [
+                    id          : id,
+                    strandedness: row.strandedness ?: "unstranded",
+                    single_end  : hasFastq ? !row.fastq_2 : true
+                ]
 
                 tuple(meta, fastq1, fastq2, bam, bai)
             }
             .view { row -> "Samplesheet entry: ${row[0].id}" }
 
-        id_ch = samplesheet_ch.map { meta, fastq1, fastq2, bam, bai -> meta.id }
+        rnavar_samplesheet = parsed_samplesheet.map { meta, fastq1, fastq2, bam, bai ->
+            tuple(meta.id, meta, fastq1 ?: [], fastq2 ?: [], bam ?: [], bai ?: [], [], [], [], [])
+        }
 
         // 1. Run nf-core/rnavar (assumes samplesheet CSV matches expected format)
         NFCORE_RNAVAR(
-            Channel.value(samplesheet_path),
+            rnavar_samplesheet,
             Channel.value(false)
         )
 
