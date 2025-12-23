@@ -75,14 +75,14 @@ workflow MAIN {
         combine_in_ch = variant_fasta
             .join(isoform_fasta)
             .map { id, var_fa, novel_fa ->
-            tuple(id, var_fa, novel_fa)
-        }
-        
-        def combined_run = combine_protein_dbs(combine_in_ch)
+                tuple(id, var_fa, novel_fa)
+            }
+
+        combine_protein_dbs(combine_in_ch)
 
     emit:
-        combined_db_ch = combined_run.out.combined_db
-        novel_db_ch    = combined_run.out.novel_db
+        combined_db_ch = combine_protein_dbs.out.combined_db
+        novel_db_ch    = combine_protein_dbs.out.novel_db
 }
 
 workflow {
