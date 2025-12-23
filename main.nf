@@ -24,17 +24,12 @@ workflow MAIN {
         )
 
         ch_markdup_bams = rnavar_run.out.markdup_bams
-        markdup_bam_ch = ch_markdup_bams.map { meta, bam -> tuple(meta, bam) }
+        markdup_bam_ch = ch_markdup_bams.map { meta, bam, bai -> tuple(meta, bam, bai) }
 
-        // Index every BAM -> output is (meta, bam, bai)
-        SAMTOOLS_INDEX(markdup_bam_ch)
-        ch_markdup_bam_bai = markdup_bam_ch
-            .join(SAMTOOLS_INDEX.out.bai, by: [0], failOnMismatch: true)
-            .set { ch_markdup_bam_bai }
 
         // 2. StringTie on markdup BAMs from RNAVAR
         RUN_STRINGTIE(
-            ch_markdup_bam_bai,  // emits: [ val(meta), path(bam), path(bai) ]
+            markdup_bam_ch,  // emits: [ val(meta), path(bam), path(bai) ]
             gene_annotation_gtf
         )
 
