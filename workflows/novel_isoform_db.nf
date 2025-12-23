@@ -125,9 +125,12 @@ workflow generate_novel_isoform_db {
           )
       )
 
-    ch_refgtf = Channel
-      .value( tuple([id: 'refgtf'], file(ref_gtf ?: fasta_path, checkIfExists: true)) )
+    if (!ref_gtf) {
+      error("Missing required parameter --gtf for gffcompare reference GTF.")
+    }
 
+    ch_refgtf = Channel.value( tuple([id: 'refgtf'], file(ref_gtf, checkIfExists: true)) )
+    
     // 1) Run gffcompare
     gffcompare_results = GFFCOMPARE(ch_gtf, ch_genome, ch_refgtf)
 

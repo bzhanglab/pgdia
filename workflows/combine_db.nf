@@ -2,6 +2,7 @@ nextflow.enable.dsl=2
 
 process combine_protein_dbs {
     tag "${sample_id}"
+    container 'python:3.11-slim'
 
     input:
         val sample_id
