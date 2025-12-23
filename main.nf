@@ -42,8 +42,6 @@ workflow MAIN {
             gene_annotation_gtf
         )
 
-
-        
         // 3. Generate novel isoform DBs from StringTie GTFs
         generate_novel_isoform_db(
             RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
