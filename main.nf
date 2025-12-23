@@ -16,7 +16,7 @@ workflow MAIN {
 
     main:
         samplesheet_ch = Channel
-            .fromPath(samplesheet_path, checkIfExists: true)
+            .value(samplesheet_path, checkIfExists: true)
             .splitCsv(header: true)
             .map { row ->
                 def meta = [
@@ -48,7 +48,7 @@ workflow MAIN {
 
         // 1. Run nf-core/rnavar (assumes samplesheet CSV matches expected format)
         NFCORE_RNAVAR(
-            Channel.fromPath(samplesheet_path),
+            Channel.value(samplesheet_path),
             Channel.value(false)
         )
 
@@ -59,16 +59,17 @@ workflow MAIN {
         )
 
         // 3. Generate novel isoform DBs from StringTie GTFs
-        def novel_isoform_run = generate_novel_isoform_db(
+        generate_novel_isoform_db(
             RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
         )
 
-        def variant_db_run = generate_variant_db(
+        generate_variant_db(
             NFCORE_RNAVAR.out.annotated_vcf
         )
 
-        variant_fasta = variant_db_run.out.variant_db
-        isoform_fasta = novel_isoform_run.out.isoform_db
+        variant_fasta = generate_variant_db.out.variant_db
+            .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
+        isoform_fasta = generate_novel_isoform_db.out.isoform_db
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
