@@ -96,8 +96,8 @@ workflow {
     samplesheet_path = file(params.input, checkIfExists: true)
 
     def resolved_gtf = params.gtf ?: (
-        params.genomes && params.genome && params.genomes.containsKey(params.genome)
-            ? params.genomes[params.genome].gtf
+        params.igenomes_base && params.genome && params.igenomes_base.containsKey(params.genome)
+            ? params.igenomes_base.genomes[params.genome].gtf
             : null
     )
 
