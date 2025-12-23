@@ -23,13 +23,16 @@ workflow MAIN {
             Channel.value(false)
         )
 
+        markdup_bam_ch = NFCORE_RNAVAR.out.markdup_bams.map { row ->
+            tuple(row[0], row[1])
+        }
 
         // Index every BAM -> output is (meta, bam, bai)
-        SAMTOOLS_INDEX(NFCORE_RNAVAR.out.markdup_bams)
-        bai_ch = SAMTOOLS_INDEX.out.bai
+        SAMTOOLS_INDEX(markdup_bam_ch)
+        SAMTOOLS_INDEX.out.bai?.view { it -> "BAI: $it" }
 
         markdup_bam_bai_ch = NFCORE_RNAVAR.out.markdup_bams
-            .join(bai_ch, failOnMismatch: true)
+            .join(SAMTOOLS_INDEX.out.bai, by: [0], remainder: true)
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
 
         // 2. StringTie on markdup BAMs from RNAVAR
