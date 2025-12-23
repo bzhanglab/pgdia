@@ -23,16 +23,12 @@ workflow MAIN {
             Channel.value(false)
         )
 
-        markdup_bam_ch = NFCORE_RNAVAR.out.markdup_bams.map { row ->
-            tuple(row[0], row[1])
-        }
-
 
         // Index every BAM -> output is (meta, bam, bai)
-        SAMTOOLS_INDEX(markdup_bam_ch)
+        SAMTOOLS_INDEX(NFCORE_RNAVAR.out.markdup_bams)
         bai_ch = SAMTOOLS_INDEX.out.bai
 
-        markdup_bam_bai_ch = markdup_bam_ch
+        markdup_bam_bai_ch = NFCORE_RNAVAR.out.markdup_bams
             .join(bai_ch, failOnMismatch: true)
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
 
