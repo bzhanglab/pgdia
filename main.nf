@@ -23,14 +23,22 @@ workflow MAIN {
             Channel.value(false)
         )
 
-        markdup_bam_only_ch = NFCORE_RNAVAR.out.markdup_bams
+        markdup_bam_ch = NFCORE_RNAVAR.out.markdup_bams.map { row ->
+            tuple(row[0], row[1])
+        }
+
 
         // Index every BAM -> output is (meta, bam, bai)
-        markdup_bams_indexed_ch = SAMTOOLS_INDEX(markdup_bam_only_ch)
+        SAMTOOLS_INDEX(markdup_bam_ch)
+        bai_ch = SAMTOOLS_INDEX.out.bai
+
+        markdup_bam_bai_ch = markdup_bam_ch
+            .join(bai_ch, failOnMismatch: true)
+            .map { meta, bam, bai -> tuple(meta, bam, bai) }
 
         // 2. StringTie on markdup BAMs from RNAVAR
         RUN_STRINGTIE(
-            markdup_bams_indexed_ch,
+            markdup_bam_bai_ch,
             gene_annotation_gtf
         )
 
