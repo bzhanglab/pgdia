@@ -18,26 +18,23 @@ workflow MAIN {
     main:
 
         // 1. Run nf-core/rnavar (assumes samplesheet CSV matches expected format)
-        NFCORE_RNAVAR(
+        def rnavar_run = NFCORE_RNAVAR(
             Channel.value(samplesheet_path),
             Channel.value(false)
         )
 
-        markdup_bam_ch = NFCORE_RNAVAR.out.markdup_bams.map { row ->
-            tuple(row[0], row[1])
-        }
+        ch_markdup_bams = rnavar_run.out.markdup_bams
+        markdup_bam_ch = ch_markdup_bams.map { meta, bam -> tuple(meta, bam) }
 
         // Index every BAM -> output is (meta, bam, bai)
         SAMTOOLS_INDEX(markdup_bam_ch)
-        SAMTOOLS_INDEX.out.bai?.view { it -> "BAI: $it" }
-
-        markdup_bam_bai_ch = NFCORE_RNAVAR.out.markdup_bams
-            .join(SAMTOOLS_INDEX.out.bai, by: [0], remainder: true)
-            .map { meta, bam, bai -> tuple(meta, bam, bai) }
+        ch_markdup_bam_bai = markdup_bam_ch
+            .join(SAMTOOLS_INDEX.out.bai, by: [0], failOnMismatch: true)
+            .set { ch_markdup_bam_bai }
 
         // 2. StringTie on markdup BAMs from RNAVAR
         RUN_STRINGTIE(
-            markdup_bam_bai_ch,
+            ch_markdup_bam_bai,  // emits: [ val(meta), path(bam), path(bai) ]
             gene_annotation_gtf
         )
 
