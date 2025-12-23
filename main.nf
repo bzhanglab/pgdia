@@ -1,6 +1,7 @@
 nextflow.enable.dsl=2
 
 include { NFCORE_RNAVAR } from './submodules/rnavar'
+include { SAMTOOLS_INDEX } from './modules/nf-core/samtools/index'
 
 include { RUN_STRINGTIE } from './workflows/stringtie/stringtie'
 include { generate_variant_db         } from './workflows/variant_db'
@@ -22,17 +23,28 @@ workflow MAIN {
             Channel.value(false)
         )
 
-        // Debug + filter nulls before StringTie
-        NFCORE_RNAVAR.out.markdup_bams.view { meta, bam, bai ->
-            "markdup_bams: ${meta.id} bam=${bam} bai=${bai}"
-        }       
+        markdup_split = NFCORE_RNAVAR.out.markdup_bams.branch(
+            has_bai: { it.size() == 3 },
+            no_bai : { it.size() == 2 }
+            )
+
+        markdup_has_bai = markdup_split.has_bai
+          .map { meta, bam, bai -> tuple(meta, bam, bai) }
+        
+        markdup_indexed = SAMTOOLS_INDEX(
+            markdup_split.no_bai.map { meta, bam -> tuple(meta, bam) }
+            )
+
+        markdup_bams_ok = markdup_has_bai.mix(markdup_indexed)
 
         // 2. StringTie on markdup BAMs from RNAVAR
         RUN_STRINGTIE(
-            NFCORE_RNAVAR.out.markdup_bams,   // emits: [ val(meta), path(bam), path(bai) ]
+            markdup_bams_ok,
             gene_annotation_gtf
         )
 
+
+        
         // 3. Generate novel isoform DBs from StringTie GTFs
         generate_novel_isoform_db(
             RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
