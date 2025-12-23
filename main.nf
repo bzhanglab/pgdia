@@ -16,7 +16,7 @@ workflow MAIN {
 
     main:
         samplesheet_ch = Channel
-            .value(samplesheet_path, checkIfExists: true)
+            .fromPath(samplesheet_path, checkIfExists: true)
             .splitCsv(header: true)
             .map { row ->
                 def meta = [
