@@ -94,7 +94,18 @@ workflow MAIN {
 
 workflow {
     samplesheet_path = file(params.input, checkIfExists: true)
-    gene_annotation_gtf = file(params.gtf, checkIfExists: true)
-    
+
+    def resolved_gtf = params.gtf ?: (
+        params.genomes && params.genome && params.genomes.containsKey(params.genome)
+            ? params.genomes[params.genome].gtf
+            : null
+    )
+
+    if (!resolved_gtf) {
+        error("Missing required reference GTF: set --gtf or provide a genome entry with a gtf path.")
+    }
+
+    gene_annotation_gtf = file(resolved_gtf, checkIfExists: true)
+
     MAIN(samplesheet_path, gene_annotation_gtf)
 }
