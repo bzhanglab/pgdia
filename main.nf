@@ -1,5 +1,28 @@
 nextflow.enable.dsl=2
 
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    GENOME PARAMETER VALUES
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+params.fasta             = getGenomeAttribute('fasta')
+params.fasta_fai         = getGenomeAttribute('fasta_fai')
+params.dict              = getGenomeAttribute('dict')
+params.gtf               = getGenomeAttribute('gtf')
+params.gff               = getGenomeAttribute('gff')
+params.exon_bed          = getGenomeAttribute('exon_bed')
+params.star_index        = getGenomeAttribute('star')
+params.dbsnp             = getGenomeAttribute('dbsnp')
+params.dbsnp_tbi         = getGenomeAttribute('dbsnp_tbi')
+params.known_indels      = getGenomeAttribute('known_indels')
+params.known_indels_tbi  = getGenomeAttribute('known_indels_tbi')
+params.snpeff_db         = getGenomeAttribute('snpeff_db')
+params.vep_cache_version = getGenomeAttribute('vep_cache_version')
+params.vep_genome        = getGenomeAttribute('vep_genome')
+params.vep_species       = getGenomeAttribute('vep_species')
+
+
 include { PIPELINE_INITIALISATION         } from './subworkflows/local/utils_nfcore_rnavar_pipeline'
 include { PREPARE_GENOME                  } from './subworkflows/local/prepare_genome'
 include { DOWNLOAD_CACHE_SNPEFF_VEP       } from './subworkflows/local/download_cache_snpeff_vep'
@@ -224,12 +247,32 @@ workflow PGDIA {
 }
 
 workflow {
-    def init = PIPELINE_INITIALISATION(
+    PIPELINE_INITIALISATION(
         params.version,
         params.validate_params,
-        [],
+        args,
         params.outdir
     )
 
-    PGDIA(init.samplesheet, init.align, file(params.gtf, checkIfExists: true))
+    PGDIA(PIPELINE_INITIALISATION.out.samplesheet, PIPELINE_INITIALISATION.out.align, file(params.gtf, checkIfExists: true))
+}
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    FUNCTIONS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+//
+// Get attribute from genome config file e.g. fasta
+//
+
+def getGenomeAttribute(attribute) {
+    if (params.genomes && params.genome && params.genomes.containsKey(params.genome)) {
+        if (params.genomes[ params.genome ].containsKey(attribute)) {
+            return params.genomes[ params.genome ][ attribute ]
+        }
+    }
+    return null
 }
