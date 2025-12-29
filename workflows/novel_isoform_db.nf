@@ -135,8 +135,8 @@ workflow generate_novel_isoform_db {
     gffcompare_results = GFFCOMPARE(ch_gtf, ch_genome, ch_refgtf)
 
     // 2) Pair each sample's .tmap with its original stringtie gtf
-    //    gffcompare_results.out.tmap: tuple(meta), path(tmap)
-    def tmap_ch = gffcompare_results.out.tmap
+    //    gffcompare_results.tmap: tuple(meta), path(tmap)
+    def tmap_ch = gffcompare_results.tmap
     if (!(tmap_ch?.respondsTo('map'))) {
         // If the process didn't emit a channel (e.g. no tmap produced), fall back to empty channel
         tmap_ch = Channel.empty()
