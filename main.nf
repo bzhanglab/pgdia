@@ -222,3 +222,10 @@ workflow PGDIA {
         combined_db_ch = combine_run.out.combined_db
         novel_db_ch    = combine_run.out.novel_db
 }
+
+workflow {
+    PGDIA(
+        params.input,
+        file(params.gtf, checkIfExists: true)
+    )
+}
