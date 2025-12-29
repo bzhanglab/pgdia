@@ -112,7 +112,7 @@ workflow RNAVAR {
 
     // MODULE: Generate QC summary using FastQC
     FASTQC(cat_fastq)
-    ch_reports = ch_reports.mix(FASTQC.out.zip.collect{ _meta, logs -> logs })
+    ch_reports = ch_reports.mix(FASTQC.out.zip.map{ _meta, logs -> logs })
     ch_versions = ch_versions.mix(FASTQC.out.versions)
 
     //
