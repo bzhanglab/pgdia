@@ -187,7 +187,7 @@ workflow PGDIA {
             Channel.value(false)
         )
 
-        ch_markdup_bams = rnavar_run.out.markdup_bams
+        ch_markdup_bams = rnavar_run.markdup_bams
 
         // 2. StringTie on markdup BAMs from RNAVAR
         def stringtie_run = RUN_STRINGTIE(
@@ -197,16 +197,16 @@ workflow PGDIA {
 
         // 3. Generate novel isoform DBs from StringTie GTFs
         def novel_run = generate_novel_isoform_db(
-            stringtie_run.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
+            stringtie_run.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
         )
 
         def variant_run =generate_variant_db(
-            rnavar_run.out.annotated_vcf
+            rnavar_run.annotated_vcf
         )
 
-        variant_fasta = variant_run.out.variant_db
+        variant_fasta = variant_run.variant_db
             .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
-        isoform_fasta = novel_run.out.isoform_db
+        isoform_fasta = novel_run.isoform_db
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
@@ -218,8 +218,8 @@ workflow PGDIA {
         def combine_run = combine_protein_dbs(combine_in_ch)
 
     emit:
-        combined_db_ch = combine_run.out.combined_db
-        novel_db_ch    = combine_run.out.novel_db
+        combined_db_ch = combine_run.combined_db
+        novel_db_ch    = combine_run.novel_db
 }
 
 workflow {
