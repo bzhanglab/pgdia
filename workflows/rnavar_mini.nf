@@ -194,6 +194,7 @@ workflow RNAVAR {
         // Prefer .bai for BAM workflows
         markdup_bams_ch = BAM_MARKDUPLICATES_PICARD.out.bam
             .join(BAM_MARKDUPLICATES_PICARD.out.bai, by: [0], failOnMismatch: true)
+            .map { meta, bam, bai -> tuple(meta, bam, bai) }
 
         //Gather QC ch_reports
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.metrics.collect{it[1]}.ifEmpty([]))
