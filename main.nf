@@ -176,15 +176,16 @@ workflow NFCORE_RNAVAR {
 workflow PGDIA {
 
     take:
-        samplesheet_path
+        samplesheet
+        align
         gene_annotation_gtf
 
     main:
 
-        // 1. Run nf-core/rnavar (assumes samplesheet CSV matches expected format)
+        // 1. Run nf-core/rnavar
         def rnavar_run = NFCORE_RNAVAR(
-            Channel.value(samplesheet_path),
-            Channel.value(false)
+            samplesheet,
+            align
         )
 
         ch_markdup_bams = rnavar_run.markdup_bams
@@ -223,8 +224,12 @@ workflow PGDIA {
 }
 
 workflow {
-    PGDIA(
-        params.input,
-        file(params.gtf, checkIfExists: true)
+    def init = PIPELINE_INITIALISATION(
+        params.version,
+        params.validate_params,
+        [],
+        params.outdir
     )
+
+    PGDIA(init.samplesheet, init.align, file(params.gtf, checkIfExists: true))
 }
