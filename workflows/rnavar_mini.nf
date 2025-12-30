@@ -99,7 +99,7 @@ workflow RNAVAR {
     // MODULE: Prepare the alignment files (index BAM/CRAM files that are missing an index)
     PREPARE_ALIGNMENT(
         parsed_input.cram,
-        parsed_input.bam,
+        parsed_input.bam
     )
     ch_versions = ch_versions.mix(PREPARE_ALIGNMENT.out.versions)
 

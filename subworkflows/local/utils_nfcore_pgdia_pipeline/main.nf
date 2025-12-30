@@ -123,16 +123,16 @@ workflow PIPELINE_COMPLETION {
     //
     workflow.onComplete {
         if (email || email_on_fail) {
-            completionEmail(
-                summary_params,
-                email,
-                email_on_fail,
-                plaintext_email,
-                outdir,
-                monochrome_logs,
-                multiqc_reports.getVal(),
-            )
-        }
+                completionEmail(
+                    summary_params,
+                    email,
+                    email_on_fail,
+                    plaintext_email,
+                    outdir,
+                    monochrome_logs,
+                    multiqc_reports.getVal()
+                )
+            }
 
         completionSummary(monochrome_logs)
         if (hook_url) {
