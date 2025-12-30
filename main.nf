@@ -23,11 +23,12 @@ params.vep_genome        = getGenomeAttribute('vep_genome')
 params.vep_species       = getGenomeAttribute('vep_species')
 
 
+include { RNAVAR                          } from './workflows/rnavar_mini'
 include { PIPELINE_INITIALISATION         } from './subworkflows/local/utils_nfcore_rnavar_pipeline'
 include { PREPARE_GENOME                  } from './subworkflows/local/prepare_genome'
 include { DOWNLOAD_CACHE_SNPEFF_VEP       } from './subworkflows/local/download_cache_snpeff_vep'
 
-include { RNAVAR } from './workflows/rnavar_mini'
+
 include { RUN_STRINGTIE } from './workflows/stringtie/stringtie'
 include { generate_variant_db         } from './workflows/variant_db'
 include { generate_novel_isoform_db   } from './workflows/novel_isoform_db'
