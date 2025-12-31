@@ -32,7 +32,7 @@ process GATK4_INTERVALLISTTOOLS {
     gatk --java-options "-Xmx${avail_mem}M -XX:-UsePerfData" \\
         IntervalListTools \\
         --INPUT $intervals \\
-        --OUTPUT ${prefix}_split.inerval_list \\
+        --OUTPUT ${prefix}_split.interval_list \\
         --TMP_DIR . \\
         $args
 
