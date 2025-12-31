@@ -82,19 +82,22 @@ workflow RNAVAR {
     def ch_versions = Channel.empty()
 
     // Parse the input data
-    parsed_input = input.groupTuple().map{ samplesheet -> checkSamplesAfterGrouping(samplesheet) }
-        .branch{ meta, fastqs, bam, bai, cram, crai, vcf, tbi ->
-            single  : fastqs.size() == 1
-                return [ meta, fastqs.flatten() ]
-            multiple: fastqs.size() > 1
-                return [ meta, fastqs.flatten() ]
-            bam     : bam
-                return [ meta, bam, bai ]
-            cram    : cram
-                return [ meta, cram, crai ]
-            vcf    : vcf
-                return [ meta, vcf, tbi ]
-        }
+    parsed_input = input
+        .groupTuple()
+        .map { samplesheet -> checkSamplesAfterGrouping(samplesheet) }
+        .map { meta, fastqs, bam, bai, cram, crai, vcf, tbi ->
+            // normalize types
+            def fq = fastqs ? fastqs.flatten() : []
+            tuple(meta, fq, bam, bai, cram, crai, vcf, tbi)
+    }
+        .branch { meta, fq, bam, bai, cram, crai, vcf, tbi ->
+            single   : fq && fq.size() == 1
+            multiple : fq && fq.size() > 1
+            bam      : bam
+            cram     : cram
+            vcf      : vcf
+    }
+
 
     // MODULE: Prepare the alignment files (index BAM/CRAM files that are missing an index)
     PREPARE_ALIGNMENT(
