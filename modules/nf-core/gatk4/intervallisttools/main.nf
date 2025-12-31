@@ -11,7 +11,7 @@ process GATK4_INTERVALLISTTOOLS {
     tuple val(meta), path(intervals)
 
     output:
-    tuple val(meta), path("*_split/*/*.interval_list"), emit: interval_list
+    tuple val(meta), path("*_split*.interval_list"), emit: interval_list
     path "versions.yml"                               , emit: versions
 
     when:
