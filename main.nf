@@ -248,14 +248,14 @@ workflow PGDIA {
 }
 
 workflow {
-    def init = PIPELINE_INITIALISATION(
+    PIPELINE_INITIALISATION(
         params.version,
         params.validate_params,
         args,
         params.outdir
     )
 
-    PGDIA(init.out.samplesheet, init.out.align, file(params.gtf, checkIfExists: true))
+    PGDIA(PIPELINE_INITIALISATION.out.samplesheet, PIPELINE_INITIALISATION.out.align, file(params.gtf, checkIfExists: true))
 }
 
 

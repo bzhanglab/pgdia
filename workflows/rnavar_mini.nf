@@ -81,29 +81,35 @@ workflow RNAVAR {
     // To gather used softwares ch_versions for MultiQC
     def ch_versions = Channel.empty()
 
+    input.view { "INIT ITEM = ${it}  (size=${it.size()})" }
+    input.groupTuple()
+        .map { checkSamplesAfterGrouping(it) }
+        .view { "AFTER CHECK = ${it}  (size=${it.size()})" }
+
+
     // Parse the input data
     parsed_input = input
         .groupTuple()
         .map { samplesheet -> checkSamplesAfterGrouping(samplesheet) }
-        .map { meta, fastqs, bam, bai, cram, crai, vcf, tbi ->
-            // normalize types
-            def fq = fastqs ? fastqs.flatten() : []
-            tuple(meta, fq, bam, bai, cram, crai, vcf, tbi)
-    }
         .branch { meta, fq, bam, bai, cram, crai, vcf, tbi ->
             single   : fq && fq.size() == 1
+            return [meta, fq.flatten()]
             multiple : fq && fq.size() > 1
+            return [meta, fq.flatten()]
             bam      : bam
+            return [meta, bam, bai]
             cram     : cram
+            return [meta, cram, crai]
             vcf      : vcf
+            return [meta, vcf, tbi]
     }
-
 
     // MODULE: Prepare the alignment files (index BAM/CRAM files that are missing an index)
     PREPARE_ALIGNMENT(
         parsed_input.cram,
-        parsed_input.bam
+        parsed_input.bam,
     )
+
     ch_versions = ch_versions.mix(PREPARE_ALIGNMENT.out.versions)
 
     // MODULE: Concatenate FastQ files from same sample if required
