@@ -207,26 +207,26 @@ workflow PGDIA {
     main:
 
         // 1. Run nf-core/rnavar
-        def rnavar_run = NFCORE_RNAVAR(
+        NFCORE_RNAVAR(
             samplesheet,
             align
         )
 
-        ch_markdup_bams = rnavar_run.out.markdup_bams
+        ch_markdup_bams = NFCORE_RNAVAR.out.markdup_bams
 
         // 2. StringTie on markdup BAMs from RNAVAR
-        def stringtie_run = RUN_STRINGTIE(
+        RUN_STRINGTIE(
             ch_markdup_bams,
             gene_annotation_gtf
         )
 
         // 3. Generate novel isoform DBs from StringTie GTFs
         def novel_run = generate_novel_isoform_db(
-            stringtie_run.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
+            RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
         )
 
         def variant_run =generate_variant_db(
-            rnavar_run.out.annotated_vcf
+            NFCORE_RNAVAR.out.annotated_vcf
         )
 
         variant_fasta = variant_run.out.variant_db
