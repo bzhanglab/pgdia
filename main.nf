@@ -254,7 +254,7 @@ workflow {
         args,
         params.outdir
     )
-
+    PIPELINE_INITIALISATION.out.samplesheet.take(1).view()
     PGDIA(PIPELINE_INITIALISATION.out.samplesheet, PIPELINE_INITIALISATION.out.align, file(params.gtf, checkIfExists: true))
 }
 
