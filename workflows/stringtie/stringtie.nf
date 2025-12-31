@@ -12,6 +12,7 @@ workflow RUN_STRINGTIE {
 }
 
 process STRINGTIE_STRINGTIE {
+    label 'process_medium'
     tag "$meta.id"
 
     conda (params.enable_conda ? "bioconda::stringtie=2.2.1" : null)

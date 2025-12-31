@@ -11,7 +11,7 @@ process GATK4_INTERVALLISTTOOLS {
     tuple val(meta), path(intervals)
 
     output:
-    tuple val(meta), path("*_split*.interval_list"), emit: interval_list
+    tuple val(meta), path("*_split/*/*.interval_list"), emit: interval_list
     path "versions.yml"                               , emit: versions
 
     when:
@@ -29,17 +29,19 @@ process GATK4_INTERVALLISTTOOLS {
     }
     """
 
+    mkdir ${prefix}_split
+
     gatk --java-options "-Xmx${avail_mem}M -XX:-UsePerfData" \\
         IntervalListTools \\
         --INPUT $intervals \\
-        --OUTPUT ${prefix}_split.interval_list \\
+        --OUTPUT ${prefix}_split \\
         --TMP_DIR . \\
         $args
 
     python3 <<CODE
     import glob, os
     # The following python code snippet rename the output files into different name to avoid overwriting or name conflict
-    intervals = sorted(glob.glob("*_split.interval_list"))
+    intervals = sorted(glob.glob("*_split/*/*.interval_list"))
     for i, interval in enumerate(intervals):
         (directory, filename) = os.path.split(interval)
         newName = os.path.join(directory, str(i + 1) + filename)

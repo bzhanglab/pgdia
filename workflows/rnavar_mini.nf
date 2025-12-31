@@ -202,7 +202,10 @@ workflow RNAVAR {
 
         markdup_bams_ch = BAM_MARKDUPLICATES_PICARD.out.bam
             .join(BAM_MARKDUPLICATES_PICARD.out.bai, by: [0], failOnMismatch:true)
+            .mix(PREPARE_ALIGNMENT.out.bam)
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
+
+        markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
 
         //Gather QC ch_reports
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.metrics.collect{it[1]}.ifEmpty([]))
