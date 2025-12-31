@@ -200,9 +200,11 @@ workflow RNAVAR {
             .join(markduplicate_indices, failOnDuplicate:true, failOnMismatch:true)
             .mix(PREPARE_ALIGNMENT.out.bam)
 
-        // Prefer .bai for BAM workflows
+        def picard_bai_ch = BAM_MARKDUPLICATES_PICARD.out.bai
+
         markdup_bams_ch = BAM_MARKDUPLICATES_PICARD.out.bam
-            .join(BAM_MARKDUPLICATES_PICARD.out.bai, by: [0], failOnMismatch: true)
+            .join(BAM_MARKDUPLICATES_PICARD.out.bai, by: [0], remainder: true, failOnMismatch: true)
+            .filter { meta, bam, bai -> bai }        // drop rows with no bai
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
 
         //Gather QC ch_reports
