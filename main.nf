@@ -221,17 +221,17 @@ workflow PGDIA {
         )
 
         // 3. Generate novel isoform DBs from StringTie GTFs
-        def novel_run = generate_novel_isoform_db(
+        generate_novel_isoform_db(
             RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
         )
 
-        def variant_run =generate_variant_db(
+        generate_variant_db(
             NFCORE_RNAVAR.out.annotated_vcf
         )
 
-        variant_fasta = variant_run.out.variant_db
+        variant_fasta = generate_variant_db.out.variant_db
             .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
-        isoform_fasta = novel_run.out.isoform_db
+        isoform_fasta = generate_novel_isoform_db.out.isoform_db
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
@@ -240,11 +240,11 @@ workflow PGDIA {
                 tuple(id, var_fa, novel_fa)
             }
 
-        def combine_run = combine_protein_dbs(combine_in_ch)
+        combine_protein_dbs(combine_in_ch)
 
     emit:
-        combined_db_ch = combine_run.out.combined_db
-        novel_db_ch    = combine_run.out.novel_db
+        combined_db_ch = combine_protein_dbs.out.combined_db
+        novel_db_ch    = combine_protein_dbs.out.novel_db
 }
 
 workflow {
