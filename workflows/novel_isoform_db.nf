@@ -116,11 +116,11 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
     def ch_refgtf = Channel.value(tuple([id:'refgtf'], file(ref_gtf, checkIfExists:true)))
     
     // 1) Run gffcompare
-    gffcompare_results = GFFCOMPARE(annotated_gtf, ch_genome, ch_refgtf)
+    GFFCOMPARE(annotated_gtf, ch_genome, ch_refgtf)
 
     // 2) Pair each sample's .tmap with its original stringtie gtf
     //    gffcompare_results.out.tmap: tuple(meta), path(tmap)
-    def tmap_ch = gffcompare_results.out.tmap
+    def tmap_ch = GFFCOMPARE.out.tmap
 
     tmap_and_gtf_ch = tmap_ch
       .map { meta, tmap -> tuple(meta.id, tmap) }
