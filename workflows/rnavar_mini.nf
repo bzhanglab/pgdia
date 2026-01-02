@@ -437,7 +437,9 @@ workflow RNAVAR {
 
     def markdup_and_vcf_ch = markdup_bams_ch
     .join(annotated_vcf_ch, by: 0, failOnMismatch: true)
-    .map { meta, bam, bai, vcf ->
+    .map { meta, bam_bai, vcf_list ->
+        def (bam, bai) = bam_bai
+        def vcf      = vcf_list
         tuple(meta, bam, bai, vcf)
     }
 
