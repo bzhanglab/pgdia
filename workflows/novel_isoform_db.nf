@@ -61,7 +61,7 @@ process filter_gtf_by_fai {
   script:
     """
     set -euo pipefail
-    awk 'BEGIN{FS="\\t"} FNR==NR{contigs[$1]=1; next} /^#/ || contigs[$1] { print }' "$fai" "$novel_gtf" > "${id}_novel_isoforms.filtered.gtf"
+    awk 'BEGIN{FS="\\t"} FNR==NR{contigs[\$1]=1; next} /^#/ || contigs[\$1] { print }' "$fai" "$novel_gtf" > "${id}_novel_isoforms.filtered.gtf"
     """
 }
 
