@@ -435,6 +435,12 @@ workflow RNAVAR {
         }
     }
 
+    def markdup_and_vcf_ch = markdup_bams_ch
+    .join(annotated_vcf_ch, by: 0, failOnMismatch: true)
+    .map { meta, bam, bai, vcf ->
+        tuple(meta, bam, bai, vcf)
+    }
+
     //
     // Collate and save software ch_versions
     //
@@ -476,7 +482,8 @@ workflow RNAVAR {
     emit:
     markdup_bams = markdup_bams_ch          // channel: [val(meta), path(/path/to/sample.bam), path(/path/to/sample.bai) ]
     annotated_vcf = annotated_vcf_ch
-
+    markdup_and_vcf = markdup_and_vcf_ch  // channel: [ val(meta), path(/path/to/sample.bam), path(/path/to/sample.bai), path(/path/to/sample.vcf) ]
+    
     multiqc_report = val_multiqc_report     // channel: /path/to/multiqc_report.html
     versions = ch_versions                  // channel: [ path(versions.yml) ]
 }
