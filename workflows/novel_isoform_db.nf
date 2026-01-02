@@ -71,7 +71,7 @@ process transdecoder_longorfs {
   input:
     tuple val(id), path(fasta)
   output:
-    tuple val(id), path(fasta), path("*transdecoder_dir")
+    tuple val(id), path(fasta), path("*.transdecoder_dir")
   script:
     """
     set -euo pipefail
@@ -85,7 +85,8 @@ process transdecoder_predict {
   tag "${id}"
 
   input:
-    tuple val(id), path(fasta), path("*transdecoder_dir")
+    tuple val(id), path(fasta), path(td_dir)
+
   output:
     tuple val(id), path("${id}.pep.fasta")
   
@@ -93,8 +94,16 @@ process transdecoder_predict {
     """
     set -euo pipefail
 
-    fasta=\$(ls -1 *.fasta | head -n 1)
+    if [[ ! -d "${td_dir}" ]]; then
+      echo "Error, cannot find directory: ${td_dir}" >&2
+      exit 2
+    fi
+    transdecoder_dir_name=\$(basename "${td_dir}")
+    if [[ ! -d "\$transdecoder_dir_name" ]]; then
+      cp -R "${td_dir}" "\$transdecoder_dir_name"
+    fi
 
+    fasta=\$(ls -l *.fasta | head -n 1)
     TransDecoder.Predict -t "\$fasta" --retain_long_orfs_length 30 -O .
 
     # TransDecoder outputs a peptide fasta like: <fasta>.transdecoder.pep
