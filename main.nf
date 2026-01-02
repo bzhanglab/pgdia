@@ -207,13 +207,21 @@ workflow PGDIA {
     main:
 
         // 1. Run nf-core/rnavar
-        NFCORE_RNAVAR(
+        def rnavar_run = NFCORE_RNAVAR(
             samplesheet,
             align
         )
 
-        ch_markdup_bams = NFCORE_RNAVAR.out.markdup_bams
+        GENERATE_VARIANT_DB(
+            rnavar_run.out.annotated_vcf
+        )
 
+        variant_fasta = GENERATE_VARIANT_DB.out.variant_db
+            .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
+        
+
+        ch_markdup_bams = rnavar_run.out.markdup_bams
+        
         // 2. StringTie on markdup BAMs from RNAVAR
         RUN_STRINGTIE(
             ch_markdup_bams,
@@ -224,14 +232,8 @@ workflow PGDIA {
         GENERATE_NOVEL_ISOFORM_DB(
             RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
         )
-
-        GENERATE_VARIANT_DB(
-            NFCORE_RNAVAR.out.annotated_vcf
-        )
-
-        variant_fasta = GENERATE_VARIANT_DB.out.variant_db
-            .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
         isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
+         
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
