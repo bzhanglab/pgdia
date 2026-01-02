@@ -156,7 +156,7 @@ workflow NFCORE_RNAVAR {
 
     /*
      * Call your modified RNAVAR workflow
-     * (Your RNAVAR should emit markdup_bams and annotated_vcf.)
+     * (Your RNAVAR should emit markdup_and_vcf.)
      */
     RNAVAR(
       samplesheet,
@@ -185,11 +185,8 @@ workflow NFCORE_RNAVAR {
     ch_versions = ch_versions.mix(RNAVAR.out.versions)
 
   emit:
-    // Downstream StringTie expects: [ val(meta), path(bam), path(bai) ]
-    markdup_bams   = RNAVAR.out.markdup_bams
-
-    // Downstream variant DB expects: [ val(meta), path(vcf) ]
-    annotated_vcf  = RNAVAR.out.annotated_vcf
+    // Downstream expects: [ val(meta), path(bam), path(bai), path(vcf) ]
+    markdup_and_vcf = RNAVAR.out.markdup_and_vcf
 
     multiqc_report = RNAVAR.out.multiqc_report
     versions       = ch_versions
@@ -212,15 +209,17 @@ workflow PGDIA {
             align
         )
 
+        def rnavar_joined = rnavar_run.markdup_and_vcf
+        def ch_annotated_vcf = rnavar_joined.map { meta, bam, bai, vcf -> tuple(meta, vcf) }
+        def ch_markdup_bams = rnavar_joined.map { meta, bam, bai, vcf -> tuple(meta, bam, bai) }
+
         GENERATE_VARIANT_DB(
-            rnavar_run.annotated_vcf
+            ch_annotated_vcf
         )
 
         variant_fasta = GENERATE_VARIANT_DB.out.variant_db
             .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
         
-
-        ch_markdup_bams = rnavar_run.markdup_bams
 
         // 2. StringTie on markdup BAMs from RNAVAR
         RUN_STRINGTIE(
