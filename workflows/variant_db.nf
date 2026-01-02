@@ -27,6 +27,10 @@ workflow GENERATE_VARIANT_DB {
 
 process gen_var_db {
   tag {meta.id}
+  container 'python:3.11-slim'
+  container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+      'https://depot.galaxyproject.org/singularity/pypgatk:0.1.13--pyhdfd78af_0' :
+      'quay.io/biocontainers/pypgatk:0.1.13--pyhdfd78af_0' }"
 
   input:
     tuple val(meta), path(annotated_vcf)
@@ -54,6 +58,7 @@ process gen_var_db {
  
 process mod_var_peptides {
   tag {meta.id}
+  container 'python:3.11-slim'
 
   input:
     tuple val(meta), path(annotated_vcf), path(var_peptides)
@@ -65,7 +70,7 @@ process mod_var_peptides {
     """
     set -euo pipefail
 
-    get_var_aa_change.py \
+    python3 get_var_aa_change.py \
       "${annotated_vcf}" \
       "${var_peptides}" \
       "${meta.id}_var_modified_peptides.fa"
