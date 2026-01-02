@@ -46,7 +46,7 @@ process get_novel_transcripts {
   script:
     """
     set -euo pipefail
-    python3 get_transcript.py "$ids_list" "$stringtie_gtf" "${id}_novel_isoforms.gtf"
+    python3 ${projectDir}/bin/get_transcript.py "$ids_list" "$stringtie_gtf" "${id}_novel_isoforms.gtf"
     
     """
 }

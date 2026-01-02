@@ -70,7 +70,7 @@ process mod_var_peptides {
     """
     set -euo pipefail
 
-    python3 get_var_aa_change.py \
+    python3 ${projectDir}/bin/get_var_aa_change.py \
       "${annotated_vcf}" \
       "${var_peptides}" \
       "${meta.id}_var_modified_peptides.fa"

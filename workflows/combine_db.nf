@@ -15,7 +15,7 @@ process COMBINE_PROTEIN_DBS {
 
     script:
     """
-    python3 assemble_protein_db.py \
+    python3 ${projectDir}/bin/assemble_protein_db.py \
         "${var_modified_peptides}" \
         "${novel_pep}" \
         "${sample_id}_combined_protein_db.fa" \
