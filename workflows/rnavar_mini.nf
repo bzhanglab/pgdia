@@ -406,13 +406,19 @@ workflow RNAVAR {
 
                 annotated_vcf_ch = VCF_ANNOTATE_ALL.out.vcf_ann.map{meta, vcf, tbi -> tuple(meta, vcf)}
 
-                markdup_and_vcf_ch = markdup_bams_ch
-                    .join(annotated_vcf_ch, by: 0, failOnMismatch: true)
-                    .map { meta, bam_bai, vcf_list ->
-                        def (bam, bai) = bam_bai
-                        def vcf      = vcf_list
-                        tuple(meta, bam, bai, vcf)
+                def markdup_by_id = markdup_bams_ch.map { meta, bam, bai ->
+                    tuple(meta.id, meta, bam, bai)
                 }
+
+                def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
+                    tuple(meta.id, vcf)
+                }
+
+                markdup_and_vcf_ch = markdup_by_id
+                    .join(vcf_by_id, by: 0, failOnMismatch: true)
+                    .map { id, meta, bam, bai, vcf ->
+                        tuple(meta, bam, bai, vcf)
+                    }
 
                 // Gather used softwares versions
                 ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
