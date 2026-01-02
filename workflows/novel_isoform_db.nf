@@ -56,7 +56,7 @@ process transdecoder_longorfs {
   input:
     tuple val(id), path(fasta)
   output:
-    tuple val(id), path("${id}.transdecoder_dir")
+    tuple val(id), path(fasta), path("${id}.tdir")
   script:
     """
     set -euo pipefail
@@ -64,8 +64,8 @@ process transdecoder_longorfs {
 
     TransDecoder.LongOrfs -t ${fasta} -m 30 -O .
 
-    mkdir -p ${id}.transdecoder_dir
-    mv *.transdecoder* ${id}.transdecoder_dir/
+    mkdir -p "${id}.tdir"
+    mv *.transdecoder* "${id}.tdir/"
 
     """
 }
@@ -74,9 +74,9 @@ process transdecoder_predict {
   tag "${id}"
 
   input:
-    tuple val(id), path(transdecoder_dir)
+    tuple val(id), path(fasta), path(tdir)
   output:
-    tuple val(id), path("${id}.transdecoder.fasta")
+    tuple val(id), path("${id}.pep.fasta")
   
   script:
     """
@@ -84,16 +84,15 @@ process transdecoder_predict {
 
     fasta=\$(ls -1 *.fasta | head -n 1)
 
-    TransDecoder.Predict -t \$fasta --retain_long_orfs_length 30 -O .
+    TransDecoder.Predict -t "\$fasta" --retain_long_orfs_length 30 -O .
 
     # TransDecoder outputs a peptide fasta like: <fasta>.transdecoder.pep
     pep=\$(ls -1 *.transdecoder.pep | head -n 1)
-    cp "\$pep" "${id}.transdecoder.fasta"
-
+    cp "\$pep" "${id}.pep.fasta"
     """
 }
 
-workflow generate_novel_isoform_db {
+workflow GENERATE_NOVEL_ISOFORM_DB {
 
   take:
     annotated_gtf   // channel: [ val(meta), path(gtf) ]  (gtf = per-sample stringtie gtf)
@@ -110,51 +109,32 @@ workflow generate_novel_isoform_db {
     def fai_path   = params.fasta_fai ?: (fasta_path ? fasta_path + '.fai' : null)
     def ref_gtf    = params.gtf ?: (params.genomes && params.genome && params.genomes.containsKey(params.genome) ? params.genomes[params.genome].gtf : null)
 
-    if (!fasta_path) {
-        error("Missing required parameter --fasta for novel isoform generation (and no genome-configured fasta found).")
-    }
+    if (!fasta_path) error("Missing --fasta (and no genomes[].fasta).")
+    if (!ref_gtf)    error("Missing --gtf for gffcompare reference GTF.")
 
-    ch_gtf = annotated_gtf
-
-    ch_genome = Channel
-      .value(
-          tuple(
-              [id: 'genome'],
-              file(fasta_path, checkIfExists: true),
-              file(fai_path,   checkIfExists: true)
-          )
-      )
-
-    if (!ref_gtf) {
-      error("Missing required parameter --gtf for gffcompare reference GTF.")
-    }
-
-    ch_refgtf = Channel.value( tuple([id: 'refgtf'], file(ref_gtf, checkIfExists: true)) )
+    def ch_genome = Channel.value(tuple([id:'genome'], file(fasta_path, checkIfExists:true), file(fai_path, checkIfExists:true)))
+    def ch_refgtf = Channel.value(tuple([id:'refgtf'], file(ref_gtf, checkIfExists:true)))
     
     // 1) Run gffcompare
-    gffcompare_results = GFFCOMPARE(ch_gtf, ch_genome, ch_refgtf)
+    gffcompare_results = GFFCOMPARE(annotated_gtf, ch_genome, ch_refgtf)
 
     // 2) Pair each sample's .tmap with its original stringtie gtf
-    //    gffcompare_results.tmap: tuple(meta), path(tmap)
-    def tmap_ch = gffcompare_results.tmap
-    if (!(tmap_ch?.respondsTo('map'))) {
-        // If the process didn't emit a channel (e.g. no tmap produced), fall back to empty channel
-        tmap_ch = Channel.empty()
-    }
+    //    gffcompare_results.out.tmap: tuple(meta), path(tmap)
+    def tmap_ch = gffcompare_results.out.tmap
 
     tmap_and_gtf_ch = tmap_ch
       .map { meta, tmap -> tuple(meta.id, tmap) }
-      .join( annotated_gtf.map { meta, gtf -> tuple(meta.id, gtf) } )
+      .join( annotated_gtf.map { meta, gtf -> tuple(meta.id, gtf) }, by: 0, failOnMismatch: true )
       .map { id, tmap, gtf -> tuple(id, tmap, gtf) }
 
     // 3) Filter .tmap file for novel isoforms
-    filtered_ids_ch = filter_isoforms(tmap_and_gtf_ch)
+    def filtered_ids_ch = filter_isoforms(tmap_and_gtf_ch)
 
     // 4) transcript ids list
-    ids_list_ch = extract_ids(filtered_ids_ch)
+    def ids_list_ch = extract_ids(filtered_ids_ch)
 
     // 5) extract novel isoforms gtf
-    novel_gtf_ch = get_novel_transcripts(ids_list_ch)
+    def novel_gtf_ch = get_novel_transcripts(ids_list_ch)
     // novel_gtf_ch: tuple( id, path("${id}_novel_isoforms.gtf") )
 
     // 6) gffread to fasta (kept consistent with earlier wiring)

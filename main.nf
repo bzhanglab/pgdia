@@ -30,9 +30,9 @@ include { DOWNLOAD_CACHE_SNPEFF_VEP       } from './subworkflows/local/download_
 
 
 include { RUN_STRINGTIE } from './workflows/stringtie/stringtie'
-include { generate_variant_db         } from './workflows/variant_db'
-include { generate_novel_isoform_db   } from './workflows/novel_isoform_db'
-include { combine_protein_dbs         } from './workflows/combine_db'
+include { GENERATE_VARIANT_DB         } from './workflows/variant_db'
+include { GENERATE_NOVEL_ISOFORM_DB   } from './workflows/novel_isoform_db'
+include { COMBINE_PROTEIN_DBS         } from './workflows/combine_db'
 
 
 
@@ -221,17 +221,17 @@ workflow PGDIA {
         )
 
         // 3. Generate novel isoform DBs from StringTie GTFs
-        generate_novel_isoform_db(
+        GENERATE_NOVEL_ISOFORM_DB(
             RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
         )
 
-        generate_variant_db(
+        GENERATE_VARIANT_DB(
             NFCORE_RNAVAR.out.annotated_vcf
         )
 
-        variant_fasta = generate_variant_db.out.variant_db
+        variant_fasta = GENERATE_VARIANT_DB.out.variant_db
             .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
-        isoform_fasta = generate_novel_isoform_db.out.isoform_db
+        isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
@@ -240,11 +240,11 @@ workflow PGDIA {
                 tuple(id, var_fa, novel_fa)
             }
 
-        combine_protein_dbs(combine_in_ch)
+        COMBINE_PROTEIN_DBS(combine_in_ch)
 
     emit:
-        combined_db_ch = combine_protein_dbs.out.combined_db
-        novel_db_ch    = combine_protein_dbs.out.novel_db
+        combined_db_ch = COMBINE_PROTEIN_DBS.out.combined_db
+        novel_db_ch    = COMBINE_PROTEIN_DBS.out.novel_db
 }
 
 workflow {
@@ -254,7 +254,6 @@ workflow {
         args,
         params.outdir
     )
-    PIPELINE_INITIALISATION.out.samplesheet.take(1).view()
     PGDIA(PIPELINE_INITIALISATION.out.samplesheet, PIPELINE_INITIALISATION.out.align, file(params.gtf, checkIfExists: true))
 }
 

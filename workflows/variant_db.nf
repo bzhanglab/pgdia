@@ -1,4 +1,4 @@
-workflow generate_variant_db {
+workflow GENERATE_VARIANT_DB {
     
     take:
     annotated_vcf   // channel: [ val(meta), path(vcf) ]  (meta.id is sample id)
