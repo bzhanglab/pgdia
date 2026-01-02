@@ -94,16 +94,13 @@ process transdecoder_predict {
     """
     set -euo pipefail
 
-    if [[ ! -d "${td_dir}" ]]; then
-      echo "Error, cannot find directory: ${td_dir}" >&2
-      exit 2
-    fi
-    transdecoder_dir_name=\$(basename "${td_dir}")
-    if [[ ! -d "\$transdecoder_dir_name" ]]; then
-      cp -R "${td_dir}" "\$transdecoder_dir_name"
-    fi
+    # Predict expects: <basename(fasta)>.transdecoder_dir
+    expected_dir="\$(basename "$fasta").transdecoder_dir"
 
-    fasta=\$(ls -l *.fasta | head -n 1)
+    # Nextflow may stage td_dir under a different name, so link it
+    if [[ ! -d "\$expected_dir" ]]; then
+      ln -s "$td_dir" "\$expected_dir"
+    fi
     
     TransDecoder.Predict -t "\$fasta" --retain_long_orfs_length 30 -O .
 
