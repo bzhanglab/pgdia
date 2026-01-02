@@ -51,6 +51,20 @@ process get_novel_transcripts {
     """
 }
 
+process filter_gtf_by_fai {
+  tag "${id}"
+  input:
+    tuple val(id), path(novel_gtf)
+    path(fai)
+  output:
+    tuple val(id), path("${id}_novel_isoforms.filtered.gtf")
+  script:
+    """
+    set -euo pipefail
+    awk 'BEGIN{FS="\\t"} FNR==NR{contigs[$1]=1; next} /^#/ || contigs[$1] { print }' "$fai" "$novel_gtf" > "${id}_novel_isoforms.filtered.gtf"
+    """
+}
+
 process transdecoder_longorfs {
   tag "${id}"
 
@@ -138,23 +152,27 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
     def novel_gtf_ch = get_novel_transcripts(ids_list_ch)
     // novel_gtf_ch: tuple( id, path("${id}_novel_isoforms.gtf") )
 
-    // 6) gffread to fasta (kept consistent with earlier wiring)
-    gffread_in_ch = novel_gtf_ch.map { id, novel_gtf ->
+    // 6) filter out records on contigs absent from the genome fasta
+    def ch_fai = Channel.value(file(fai_path, checkIfExists: true))
+    def filtered_novel_gtf_ch = filter_gtf_by_fai(novel_gtf_ch, ch_fai)
+
+    // 7) gffread to fasta (kept consistent with earlier wiring)
+    gffread_in_ch = filtered_novel_gtf_ch.map { id, novel_gtf ->
       tuple([id: id], novel_gtf)
     }
 
     GFFREAD(
       gffread_in_ch,
-      Channel.value(file(params.fasta, checkIfExists: true))
+      Channel.value(file(fasta_path, checkIfExists: true))
     )
 
     novel_fasta_ch = GFFREAD.out.gffread_fasta
     novel_fasta_by_id_ch = novel_fasta_ch.map { meta, fa -> tuple(meta.id, fa) }
 
-    // 8) TransDecoder.LongOrfs
+    // 9) TransDecoder.LongOrfs
     longorfs_ch = transdecoder_longorfs(novel_fasta_by_id_ch)
 
-    // 9) TransDecoder.Predict
+    // 10) TransDecoder.Predict
     predict_pep_ch = transdecoder_predict(longorfs_ch)
 
   emit:
