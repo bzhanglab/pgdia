@@ -27,14 +27,18 @@ process GFFREAD {
     def fasta_arg   = fasta                     ? "-g $fasta" : ''
     def output_name = "${prefix}.${extension}"
     def output      = extension == "fasta"      ? "$output_name" : "-o $output_name"
-    def args_sorted = args.replaceAll(/(.*)(-[wxy])(.*)/) { all, pre, param, post -> "$pre $post $param" }.trim()
+    //def args_sorted = args.replaceAll(/(.*)(-[wxy])(.*)/) { all, pre, param, post -> "$pre $post $param" }.trim()
+    // If -w is present but has no filename, add one
+    if (args =~ /(^|\s)-w(\s|$)/ && !(args =~ /-w\s+\S+/)) {
+        args = args.replaceAll(/(^|\s)-w(\s|$)/, " -w ${prefix}.fasta ").trim()
+    }
     // args_sorted  = Move '-w', '-x', and '-y' to the end of the args string as gffread expects the file name after these parameters
     if ( "$output_name" in [ "$gff", "$fasta" ] ) error "Input and output names are the same, use \"task.ext.prefix\" to disambiguate!"
     """
     gffread \\
         $gff \\
         $fasta_arg \\
-        $args_sorted \\
+        $args \\
         $output
 
     cat <<-END_VERSIONS > versions.yml
