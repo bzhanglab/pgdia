@@ -104,6 +104,7 @@ process transdecoder_predict {
     fi
 
     fasta=\$(ls -l *.fasta | head -n 1)
+    
     TransDecoder.Predict -t "\$fasta" --retain_long_orfs_length 30 -O .
 
     # TransDecoder outputs a peptide fasta like: <fasta>.transdecoder.pep
