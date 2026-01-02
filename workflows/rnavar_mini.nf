@@ -209,8 +209,7 @@ workflow RNAVAR {
 
     def bam_bai_for_calling = input_bam_bai_ch.mix(star_markdup_bam_bai_ch)
 
-    markdup_bams_ch = bam_bai_for_calling
-    markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
+    
 
     //
     // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
@@ -410,6 +409,10 @@ workflow RNAVAR {
         } else {
             annotated_vcf_ch = vcf_for_annotation.map { meta, vcf -> tuple(meta, vcf) }
         }
+
+        markdup_bams_ch = bam_bai_for_calling
+        markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
+        annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
 
         def markdup_by_id = markdup_bams_ch.map { meta, bam, bai ->
             tuple(meta.id, meta, bam, bai)
