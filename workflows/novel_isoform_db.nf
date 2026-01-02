@@ -65,6 +65,8 @@ process filter_gtf_by_fai {
     """
 }
 
+
+
 process transdecoder_longorfs {
   tag "${id}"
 
@@ -75,6 +77,8 @@ process transdecoder_longorfs {
   script:
     """
     set -euo pipefail
+
+    rm -rf "\$(basename "$fasta").transdecoder_dir"
     
     TransDecoder.LongOrfs -t ${fasta} -m 30 -O .
 
