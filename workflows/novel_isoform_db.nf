@@ -71,16 +71,12 @@ process transdecoder_longorfs {
   input:
     tuple val(id), path(fasta)
   output:
-    tuple val(id), path(fasta), path("${id}.tdir")
+    tuple val(id), path(fasta), path("*transdecoder_dir")
   script:
     """
     set -euo pipefail
     
-
     TransDecoder.LongOrfs -t ${fasta} -m 30 -O .
-
-    mkdir -p "${id}.tdir"
-    mv *.transdecoder* "${id}.tdir/"
 
     """
 }
@@ -89,7 +85,7 @@ process transdecoder_predict {
   tag "${id}"
 
   input:
-    tuple val(id), path(fasta), path(tdir)
+    tuple val(id), path(fasta), path("*transdecoder_dir")
   output:
     tuple val(id), path("${id}.pep.fasta")
   
