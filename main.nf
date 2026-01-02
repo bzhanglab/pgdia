@@ -213,15 +213,15 @@ workflow PGDIA {
         )
 
         GENERATE_VARIANT_DB(
-            rnavar_run.out.annotated_vcf
+            rnavar_run.annotated_vcf
         )
 
         variant_fasta = GENERATE_VARIANT_DB.out.variant_db
             .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
         
 
-        ch_markdup_bams = rnavar_run.out.markdup_bams
-        
+        ch_markdup_bams = rnavar_run.markdup_bams
+
         // 2. StringTie on markdup BAMs from RNAVAR
         RUN_STRINGTIE(
             ch_markdup_bams,
