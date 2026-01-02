@@ -101,6 +101,8 @@ process transdecoder_predict {
     if [[ ! -d "\$expected_dir" ]]; then
       ln -s "$td_dir" "\$expected_dir"
     fi
+
+    fasta=$(ls -1 *.fasta | head -n 1)
     
     TransDecoder.Predict -t "\$fasta" --retain_long_orfs_length 30 -O .
 
