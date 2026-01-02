@@ -166,6 +166,7 @@ workflow RNAVAR {
     //
     def markdup_bams_ch = Channel.empty()
     def annotated_vcf_ch = Channel.empty()
+    def markdup_and_vcf_ch = Channel.empty()
 
     if (params.aligner == 'star') {
         FASTQ_ALIGN_STAR(
@@ -405,6 +406,14 @@ workflow RNAVAR {
 
                 annotated_vcf_ch = VCF_ANNOTATE_ALL.out.vcf_ann.map{meta, vcf, tbi -> tuple(meta, vcf)}
 
+                markdup_and_vcf_ch = markdup_bams_ch
+                    .join(annotated_vcf_ch, by: 0, failOnMismatch: true)
+                    .map { meta, bam_bai, vcf_list ->
+                        def (bam, bai) = bam_bai
+                        def vcf      = vcf_list
+                        tuple(meta, bam, bai, vcf)
+                }
+
                 // Gather used softwares versions
                 ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
                 ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
@@ -435,13 +444,7 @@ workflow RNAVAR {
         }
     }
 
-    def markdup_and_vcf_ch = markdup_bams_ch
-    .join(annotated_vcf_ch, by: 0, failOnMismatch: true)
-    .map { meta, bam_bai, vcf_list ->
-        def (bam, bai) = bam_bai
-        def vcf      = vcf_list
-        tuple(meta, bam, bai, vcf)
-    }
+    
 
     //
     // Collate and save software ch_versions
