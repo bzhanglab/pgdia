@@ -415,7 +415,7 @@ workflow RNAVAR {
             //
             // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
             //
-            if((!params.skip_variantannotation) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
+            if((!params.skip_variantannotation) && (params.tools) && (params.tools.contains('vep'))) {
 
                 final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
                 def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
@@ -424,7 +424,14 @@ workflow RNAVAR {
 
                 vcf_for_vep = final_vcf.map {meta, vcf ->  [ meta + [ file_name: vcf.baseName ], vcf ]}
 
-                VCF_ANNOTATE_ENSEMBLVEP(vcf_for_vep, fasta, vep_genome, vep_species, vep_cache_version, vep_cache, vep_extra_files)
+                vcf_for_vep.view { "VEP ch_vcf: $it" }        // expect [meta, vcf, []] (3 items)
+                vep_fasta.view { "VEP ch_fasta: $it" }        // expect [meta, fasta] or [] if empty
+                vep_cache.view { "VEP ch_cache: $it" }        // expect [meta, cache] or [] if empty
+                vep_extra_files.view { "VEP ch_extra_files: $it" } // expect list of paths or []
+                log.info "VEP genome=${vep_genome} species=${vep_species} cache_version=${vep_cache_version}"
+
+
+                VCF_ANNOTATE_ENSEMBLVEP(vcf_for_vep, vep_fasta, vep_genome, vep_species, vep_cache_version, vep_cache, vep_extra_files)
 
                 
                 VCF_ANNOTATE_ENSEMBLVEP.out.vcf_tbi.view { "ANNOTATED_VCF item=$it" }
