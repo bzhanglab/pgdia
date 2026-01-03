@@ -150,7 +150,7 @@ workflow RNAVAR {
         UMITOOLS_EXTRACT(
             cat_fastq
         )
-        ch_versions = ch_versions.mix(UMITOOLS_EXTRACT.out.versions.first())
+        ch_versions = ch_versions.mix(UMITOOLS_EXTRACT.out.versions)
         umi_extracted_reads = UMITOOLS_EXTRACT.out.reads
     } else {
         umi_extracted_reads = cat_fastq
@@ -177,6 +177,9 @@ workflow RNAVAR {
     else {
         interval_list_split = interval_list.map { _meta, bed -> bed }
     }
+
+    interval_list_split.view { "INTERVAL_LIST item=$it" }
+
 
     //
     // SUBWORKFLOW: Perform read alignment using STAR aligner
@@ -406,6 +409,9 @@ workflow RNAVAR {
             } else {
                 final_vcf = haplotypecaller_vcf
             }
+
+            final_vcf.map { meta, vcf -> meta.id }.view { "VCF_FOR_ANN id=$it" }
+
 
             //
             // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
