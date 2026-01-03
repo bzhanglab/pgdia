@@ -218,8 +218,12 @@ workflow RNAVAR {
             fasta,
             fasta_fai)
 
+        def markduplicate_indices = BAM_MARKDUPLICATES_PICARD.out.bai
+            .mix(BAM_MARKDUPLICATES_PICARD.out.csi)
+            .mix(BAM_MARKDUPLICATES_PICARD.out.crai)
+
         star_markdup_bam_bai_ch = BAM_MARKDUPLICATES_PICARD.out.bam
-            .join(BAM_MARKDUPLICATES_PICARD.out.bai, by: [0], failOnMismatch:true)
+            .join(markduplicate_indices, by: [0], failOnMismatch:true)
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
 
         //Gather QC ch_reports
@@ -232,7 +236,7 @@ workflow RNAVAR {
 
     def bam_bai_for_calling = input_bam_bai_ch.mix(star_markdup_bam_bai_ch)
 
-    
+    bam_bai_for_calling.view { "BAM FOR CALLING: ${it}" }
 
     //
     // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
