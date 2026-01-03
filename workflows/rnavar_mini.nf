@@ -104,12 +104,6 @@ workflow RNAVAR {
     // To gather used softwares ch_versions for MultiQC
     def ch_versions = Channel.empty()
 
-    input.view { "INIT ITEM = ${it}  (size=${it.size()})" }
-    input.groupTuple()
-        .map { checkSamplesAfterGrouping(it) }
-        .view { "AFTER CHECK = ${it}  (size=${it.size()})" }
-
-
     // Parse the input data
     parsed_input = input
         .groupTuple()
@@ -220,10 +214,9 @@ workflow RNAVAR {
         def markduplicate_indices = BAM_MARKDUPLICATES_PICARD.out.bai
             .mix(BAM_MARKDUPLICATES_PICARD.out.csi)
             .mix(BAM_MARKDUPLICATES_PICARD.out.crai)
-        markduplicate_indices.view { "MARKDUP INDEX: ${it}" }
 
         star_markdup_bam_bai_ch = BAM_MARKDUPLICATES_PICARD.out.bam
-            .join(markduplicate_indices, by: [0], failOnMismatch:true)
+            .join(markduplicate_indices, failOnDuplicate:true, failOnMismatch:true)
             .mix(PREPARE_ALIGNMENT.out.bam)
 
         star_markdup_bam_bai_ch.view { "STAR MARKDUP BAM BAI: ${it}" }
@@ -235,17 +228,12 @@ workflow RNAVAR {
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.idxstats.collect{it[1]}.ifEmpty([]))
         ch_versions               = ch_versions.mix(BAM_MARKDUPLICATES_PICARD.out.versions)
     
-
-        def bam_bai_for_calling = star_markdup_bam_bai_ch
-
-        bam_bai_for_calling.view { "BAM FOR CALLING: ${it}" }
-
         //
         // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
         // Splits reads that contain Ns in their cigar string(e.g. spanning splicing events in RNAseq data).
         //
 
-        SPLITNCIGAR(bam_bai_for_calling,
+        SPLITNCIGAR(star_markdup_bam_bai_ch,
             fasta,
             fasta_fai,
             dict,
@@ -359,6 +347,7 @@ workflow RNAVAR {
                 [ groupKey(new_meta, meta.interval_count), vcf, tbi ]
             }
             .groupTuple()
+            .view { "HAPLOTYPECALLER OUT GROUPED: ${it} (size=${it.size()})" }
 
         ch_versions  = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions)
 
@@ -426,6 +415,8 @@ workflow RNAVAR {
             def tools_arg = tools_list.join(',')
             def tools_ok = tools_list.any { it in ['merge', 'snpeff', 'vep'] }
 
+            tools_ok.view { "TOOLS ARG: ${tools_arg}" }
+
             if (params.skip_variantannotation || !tools_ok) {
                 error("Variant annotation is required. Set --tools to include merge/snpeff/vep and do not use --skip_variantannotation.")
             }
@@ -451,7 +442,7 @@ workflow RNAVAR {
             ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
             ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
 
-            def markdup_by_id = bam_bai_for_calling.map { meta, bam, bai ->
+            def markdup_by_id = star_markdup_bam_bai_ch.map { meta, bam, bai ->
                 tuple(meta.id, meta, bam, bai)
             }
 
