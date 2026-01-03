@@ -221,7 +221,6 @@ workflow RNAVAR {
             .join(markduplicate_indices, failOnDuplicate:true, failOnMismatch:true)
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
 
-        star_markdup_bam_bai_ch.view { "STAR MARKDUP BAM BAI: ${it}" }
 
         //Gather QC ch_reports
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.metrics.collect{it[1]}.ifEmpty([]))
@@ -237,7 +236,6 @@ workflow RNAVAR {
 
         def input_bam_bai_ch = PREPARE_ALIGNMENT.out.bam
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
-            .view { "PREPARE ALIGNMENT BAM BAI: ${it}" }
         
 
         bam_bai_for_calling = input_bam_bai_ch.mix(star_markdup_bam_bai_ch)
@@ -252,7 +250,6 @@ workflow RNAVAR {
         def splitncigar_bam_bai  = SPLITNCIGAR.out.bam_bai
         ch_versions                 = ch_versions.mix(SPLITNCIGAR.out.versions)
 
-        splitncigar_bam_bai.view { "SPLITNCIGAR BAM BAI: ${it}" }
         //
         // MODULE: BaseRecalibrator from GATK4
         // Generates a recalibration table based on various co-variates
@@ -438,7 +435,6 @@ workflow RNAVAR {
                 VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
                 def annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
 
-                annotated_vcf_ch.view { "ANNOTATED VCF CH: ${it}" }
 
                 // Gather used softwares versions
                 ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
@@ -448,26 +444,19 @@ workflow RNAVAR {
                     tuple(meta.id, meta, bam, bai)
                 }
 
-                markdup_by_id.view { "MARKDUP BY ID item = ${it} (size=${it.size()})" }
 
                 def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
                     tuple(meta.id, vcf)
                 }
 
-                vcf_by_id.view { "VCF BY ID item = ${it} (size=${it.size()})" }
 
-        def markdup_by_id_gate = markdup_by_id.collect().flatMap { it }
-        def vcf_by_id_gate     = vcf_by_id.collect().flatMap { it }
+                markdup_and_vcf_ch = markdup_by_id
+                    .join(vcf_by_id, by: [0], failOnMismatch: true)
+                    .map { id, meta, bam, bai, vcf ->
+                        tuple(meta, bam, bai, vcf)
+                    }
 
-        markdup_and_vcf_ch = markdup_by_id_gate
-            .join(vcf_by_id_gate, by: 0, failOnMismatch: true)
-            .map { id, meta, bam, bai, vcf ->
-                tuple(meta, bam, bai, vcf)
-            }
-                markdup_and_vcf_ch.view { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
-
-                annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
-            }
+                }
 
         } else {
 
