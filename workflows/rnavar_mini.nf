@@ -386,6 +386,11 @@ workflow RNAVAR {
         def vcf_for_annotation = final_vcf
             .mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
 
+        def raw_vcf_by_id = vcf_for_annotation.map { meta, vcf ->
+            tuple(meta.id, meta, vcf, false)
+        }
+
+        def ann_vcf_by_id = Channel.empty()
         if((!params.skip_variantannotation) && (params.tools) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
             def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
 
@@ -401,14 +406,22 @@ workflow RNAVAR {
                 vep_cache,
                 vep_extra_files)
 
-            annotated_vcf_ch = VCF_ANNOTATE_ALL.out.vcf_ann.map{meta, vcf, tbi -> tuple(meta, vcf)}
+            ann_vcf_by_id = VCF_ANNOTATE_ALL.out.vcf_ann.map{meta, vcf, tbi -> tuple(meta.id, meta, vcf, true)}
 
             // Gather used softwares versions
             ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
             ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
-        } else {
-            annotated_vcf_ch = vcf_for_annotation.map { meta, vcf -> tuple(meta, vcf) }
         }
+
+        annotated_vcf_ch = raw_vcf_by_id
+            .mix(ann_vcf_by_id)
+            .groupTuple()
+            .map { id, metas, vcfs, ann_flags ->
+                def idx = ann_flags.indexOf(true)
+                def meta = idx >= 0 ? metas[idx] : metas[0]
+                def vcf = idx >= 0 ? vcfs[idx] : vcfs[0]
+                tuple(meta, vcf)
+            }
 
         markdup_bams_ch = bam_bai_for_calling
         markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
