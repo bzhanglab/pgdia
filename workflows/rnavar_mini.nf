@@ -412,10 +412,20 @@ workflow RNAVAR {
             final_vcf.map { meta, vcf -> meta.id }.view { "VCF_FOR_ANN id=$it" }
 
 
+            def tools_list = []
+            if (params.tools) {
+                if (params.tools instanceof List) {
+                    tools_list = params.tools.collect { it.toString().trim().toLowerCase() }.findAll { it }
+                } else {
+                    tools_list = params.tools.toString().split(',').collect { it.trim().toLowerCase() }.findAll { it }
+                }
+            }
+            def tools_arg = tools_list.join(',')
+
             //
             // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
             //
-            if((!params.skip_variantannotation) && (params.tools) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
+            if((!params.skip_variantannotation) && (tools_list.contains('merge') || tools_list.contains('snpeff') || tools_list.contains('vep'))) {
 
                 final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
                 def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
@@ -423,7 +433,7 @@ workflow RNAVAR {
                 VCF_ANNOTATE_ALL(
                     final_vcf.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
                     vep_fasta,
-                    params.tools,
+                    tools_arg,
                     snpeff_db,
                     snpeff_cache,
                     vep_genome,
