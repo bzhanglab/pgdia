@@ -442,11 +442,7 @@ workflow RNAVAR {
         ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
         ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
 
-        markdup_bams_ch = bam_bai_for_calling
-        markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
-        annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
-
-        def markdup_by_id = markdup_bams_ch.map { meta, bam, bai ->
+        def markdup_by_id = bam_bai_for_calling.map { meta, bam, bai ->
             tuple(meta.id, meta, bam, bai)
         }
 
@@ -459,6 +455,12 @@ workflow RNAVAR {
             .map { id, meta, bam, bai, vcf ->
                 tuple(meta, bam, bai, vcf)
             }
+
+        markdup_bams_ch = markdup_and_vcf_ch.map { meta, bam, bai, vcf ->
+            tuple(meta, bam, bai)
+        }
+        markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
+        annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
 
     } else {
 
