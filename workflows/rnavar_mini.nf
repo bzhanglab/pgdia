@@ -406,63 +406,53 @@ workflow RNAVAR {
             //
             // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
             //
-            def vcf_for_annotation = final_vcf
-                .mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
+            if((params.tools) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
 
-            def tools_raw = params.tools instanceof List ? params.tools : (params.tools ? params.tools.split(',') : [])
-            def tools_list = tools_raw ? tools_raw.collect { it.toString().trim() }.findAll { it } : []
-            def tools_arg = tools_list.join(',')
-            def tools_ok = tools_list.any { it in ['merge', 'snpeff', 'vep'] }
+                final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
+                def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
 
-            tools_arg.view { "TOOLS ARG: ${tools_arg}" }
+                VCF_ANNOTATE_ALL(
+                    final_vcf.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
+                    vep_fasta,
+                    params.tools,
+                    snpeff_db,
+                    snpeff_cache,
+                    vep_genome,
+                    vep_species,
+                    vep_cache_version,
+                    vep_cache,
+                    vep_extra_files)
 
-            if (params.skip_variantannotation || !tools_ok) {
-                error("Variant annotation is required. Set --tools to include merge/snpeff/vep and do not use --skip_variantannotation.")
-            }
+                VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
+                annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
 
-            def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
+                // Gather used softwares versions
+                ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
+                ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
 
-            VCF_ANNOTATE_ALL(
-                vcf_for_annotation.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
-                vep_fasta,
-                tools_arg,
-                snpeff_db,
-                snpeff_cache,
-                vep_genome,
-                vep_species,
-                vep_cache_version,
-                vep_cache,
-                vep_extra_files)
-
-            VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
-            annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
-
-            // Gather used softwares versions
-            ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
-            ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
-
-            def markdup_by_id = star_markdup_bam_bai_ch.map { meta, bam, bai ->
-                tuple(meta.id, meta, bam, bai)
-            }
-
-            def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
-                tuple(meta.id, vcf)
-            }
-
-            vcf_by_id.view { "VCF BY ID item = ${it} (size=${it.size()})" }
-
-            markdup_and_vcf_ch = markdup_by_id
-                .join(vcf_by_id, by: 0, failOnMismatch: true)
-                .map { id, meta, bam, bai, vcf ->
-                    tuple(meta, bam, bai, vcf)
+                def markdup_by_id = star_markdup_bam_bai_ch.map { meta, bam, bai ->
+                    tuple(meta.id, meta, bam, bai)
                 }
-            markdup_and_vcf_ch.view { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
 
-            markdup_bams_ch = markdup_and_vcf_ch.map { meta, bam, bai, vcf ->
-                tuple(meta, bam, bai)
+                def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
+                    tuple(meta.id, vcf)
+                }
+
+                vcf_by_id.view { "VCF BY ID item = ${it} (size=${it.size()})" }
+
+                markdup_and_vcf_ch = markdup_by_id
+                    .join(vcf_by_id, by: 0, failOnMismatch: true)
+                    .map { id, meta, bam, bai, vcf ->
+                        tuple(meta, bam, bai, vcf)
+                    }
+                markdup_and_vcf_ch.view { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
+
+                markdup_bams_ch = markdup_and_vcf_ch.map { meta, bam, bai, vcf ->
+                    tuple(meta, bam, bai)
+                }
+                markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
+                annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
             }
-            markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
-            annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
 
         } else {
 
