@@ -414,7 +414,7 @@ workflow RNAVAR {
             def tools_arg = tools_list.join(',')
             def tools_ok = tools_list.any { it in ['merge', 'snpeff', 'vep'] }
 
-            tools_ok.view { "TOOLS ARG: ${tools_arg}" }
+            tools_arg.view { "TOOLS ARG: ${tools_arg}" }
 
             if (params.skip_variantannotation || !tools_ok) {
                 error("Variant annotation is required. Set --tools to include merge/snpeff/vep and do not use --skip_variantannotation.")
