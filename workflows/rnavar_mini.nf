@@ -217,9 +217,9 @@ workflow RNAVAR {
             .mix(BAM_MARKDUPLICATES_PICARD.out.csi)
             .mix(BAM_MARKDUPLICATES_PICARD.out.crai)
 
-        star_markdup_bam_bai_ch = BAM_MARKDUPLICATES_PICARD.out.bam
+        def genome_bam_bai = BAM_MARKDUPLICATES_PICARD.out.bam
             .join(markduplicate_indices, failOnDuplicate:true, failOnMismatch:true)
-            .map { meta, bam, bai -> tuple(meta, bam, bai) }
+            .mix(PREPARE_ALIGNMENT.out.bam)
 
 
         //Gather QC ch_reports
@@ -233,12 +233,9 @@ workflow RNAVAR {
         // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
         // Splits reads that contain Ns in their cigar string(e.g. spanning splicing events in RNAseq data).
         //
-
-        def input_bam_bai_ch = PREPARE_ALIGNMENT.out.bam
-            .map { meta, bam, bai -> tuple(meta, bam, bai) }
         
 
-        bam_bai_for_calling = input_bam_bai_ch.mix(star_markdup_bam_bai_ch)
+        bam_bai_for_calling = genome_bam_bai
 
         SPLITNCIGAR(bam_bai_for_calling,
             fasta,
