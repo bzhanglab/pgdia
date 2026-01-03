@@ -134,7 +134,6 @@ workflow RNAVAR {
     )
 
     ch_versions = ch_versions.mix(PREPARE_ALIGNMENT.out.versions)
-    def input_bam_bai_ch = PREPARE_ALIGNMENT.out.bam
 
     // MODULE: Concatenate FastQ files from same sample if required
     CAT_FASTQ(parsed_input.multiple)
@@ -225,7 +224,7 @@ workflow RNAVAR {
 
         star_markdup_bam_bai_ch = BAM_MARKDUPLICATES_PICARD.out.bam
             .join(markduplicate_indices, by: [0], failOnMismatch:true)
-            .map { meta, bam, bai -> tuple(meta, bam, bai) }
+            .mix(PREPARE_ALIGNMENT.out.bam)
 
         star_markdup_bam_bai_ch.view { "STAR MARKDUP BAM BAI: ${it}" }
 
@@ -235,271 +234,271 @@ workflow RNAVAR {
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.flagstat.collect{it[1]}.ifEmpty([]))
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.idxstats.collect{it[1]}.ifEmpty([]))
         ch_versions               = ch_versions.mix(BAM_MARKDUPLICATES_PICARD.out.versions)
-    }
+    
 
-    def bam_bai_for_calling = input_bam_bai_ch.mix(star_markdup_bam_bai_ch)
+        def bam_bai_for_calling = star_markdup_bam_bai_ch
 
-    bam_bai_for_calling.view { "BAM FOR CALLING: ${it}" }
+        bam_bai_for_calling.view { "BAM FOR CALLING: ${it}" }
 
-    //
-    // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
-    // Splits reads that contain Ns in their cigar string(e.g. spanning splicing events in RNAseq data).
-    //
+        //
+        // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
+        // Splits reads that contain Ns in their cigar string(e.g. spanning splicing events in RNAseq data).
+        //
 
-    SPLITNCIGAR(bam_bai_for_calling,
-        fasta,
-        fasta_fai,
-        dict,
-        interval_list_split
-    )
-
-    def splitncigar_bam_bai  = SPLITNCIGAR.out.bam_bai
-    ch_versions                 = ch_versions.mix(SPLITNCIGAR.out.versions)
-
-    splitncigar_bam_bai.view { "SPLITNCIGAR BAM BAI: ${it}" }
-    //
-    // MODULE: BaseRecalibrator from GATK4
-    // Generates a recalibration table based on various co-variates
-    //
-    def bam_variant_calling = Channel.empty()
-
-    if (!params.skip_baserecalibration) {
-        // known_sites is made by grouping both the dbsnp and the known indels ressources
-        // they can either or both be optional
-        def known_sites = dbsnp
-            .combine(known_indels)
-            .map { _meta, dbsnp_, known_indels_=[] ->
-                def file_list = [dbsnp_]
-                file_list.add(known_indels_)
-                return [[id:"known_sites"], file_list.flatten().findAll { entry -> entry != [] }]
-            }
-            .collect()
-        def known_sites_tbi = dbsnp_tbi
-            .combine(known_indels_tbi)
-            .map { _meta, dbsnp_, known_indels_=[] ->
-                def file_list = [dbsnp_]
-                file_list.add(known_indels_)
-                return [[id:"known_sites"], file_list.flatten().findAll { entry -> entry != [] }]
-            }
-            .collect()
-
-        def interval_list_recalib = interval_list.map{ _meta, bed -> [bed] }.flatten()
-        def splitncigar_bam_bai_interval = splitncigar_bam_bai.combine(interval_list_recalib)
-
-        GATK4_BASERECALIBRATOR(
-            splitncigar_bam_bai_interval,
+        SPLITNCIGAR(bam_bai_for_calling,
             fasta,
             fasta_fai,
             dict,
-            known_sites,
-            known_sites_tbi
-        )
-        def bqsr_table   = GATK4_BASERECALIBRATOR.out.table
-
-        // Gather QC ch_reports
-        ch_reports  = ch_reports.mix(bqsr_table.map{ _meta, table -> table})
-        ch_versions     = ch_versions.mix(GATK4_BASERECALIBRATOR.out.versions)
-
-        def bam_applybqsr       = splitncigar_bam_bai.join(bqsr_table)
-
-        bam_applybqsr.view { "BAM APPLY BQSR: ${it}" }
-
-        def interval_list_applybqsr = interval_list.map{ _meta, bed -> [bed] }.flatten()
-        def applybqsr_bam_bai_interval = bam_applybqsr.combine(interval_list_applybqsr)
-            .map{ meta, bam, bai, table, interval -> [ meta, bam, bai, table, interval]}
-
-        //
-        // MODULE: ApplyBaseRecalibrator from GATK4
-        // Recalibrates the base qualities of the input reads based on the recalibration table produced by the GATK BaseRecalibrator tool.
-        //
-        RECALIBRATE(
-            params.skip_multiqc,
-            applybqsr_bam_bai_interval,
-            dict.map{ _meta, dict_ -> [dict_] },
-            fasta_fai.map { _meta, fai -> fai },
-            fasta.map{ _meta, fasta_ -> [fasta_] }
+            interval_list_split
         )
 
-        bam_variant_calling = RECALIBRATE.out.bam
+        def splitncigar_bam_bai  = SPLITNCIGAR.out.bam_bai
+        ch_versions                 = ch_versions.mix(SPLITNCIGAR.out.versions)
 
-        // Gather QC ch_reports
-        ch_reports  = ch_reports.mix(RECALIBRATE.out.qc.collect{it[1]}.ifEmpty([]))
-        ch_versions = ch_versions.mix(RECALIBRATE.out.versions)
-    } else {
-        bam_variant_calling = splitncigar_bam_bai
-    }
-
-    def haplotypecaller_interval_bam = bam_variant_calling.combine(interval_list_split)
-        .map { meta, bam, bai, interval_lists ->
-            def new_meta = meta + [interval_count: interval_lists instanceof List ? interval_lists.size() : 1]
-            [ new_meta, bam, bai, new_meta.interval_count > 1 ? interval_lists : [interval_lists] ]
-        }
-        .transpose(by:3)
-        .map{ meta, bam, bai, interval_list_ ->
-            [ meta + [ id:meta.id + "_" + interval_list_.baseName, sample:meta.id, variantcaller:'haplotypecaller' ], bam, bai, interval_list_, [] ]
-        }
-
-    //
-    // MODULE: HaplotypeCaller from GATK4
-    // Calls germline SNPs and indels via local re-assembly of haplotypes.
-    //
-
-    GATK4_HAPLOTYPECALLER(
-        haplotypecaller_interval_bam,
-        fasta,
-        fasta_fai,
-        dict,
-        dbsnp,
-        dbsnp_tbi
-    )
-
-    def haplotypecaller_out = GATK4_HAPLOTYPECALLER.out.vcf
-        .join(GATK4_HAPLOTYPECALLER.out.tbi, failOnMismatch:true, failOnDuplicate:true)
-        .map{ meta, vcf, tbi ->
-            def new_meta = meta + [id:meta.sample] - meta.subMap('sample', "interval_count")
-            [ groupKey(new_meta, meta.interval_count), vcf, tbi ]
-        }
-        .groupTuple()
-
-    ch_versions  = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions)
-
-    def haplotypecaller_vcf = Channel.empty()
-    if (params.generate_gvcf) {
-        error("Variant annotation is required; disable --generate_gvcf.")
-    }
-    if (!params.generate_gvcf){
+        splitncigar_bam_bai.view { "SPLITNCIGAR BAM BAI: ${it}" }
         //
-        // MODULE: MergeVCFS from GATK4
-        // Merge multiple GVCF files into one VCF
+        // MODULE: BaseRecalibrator from GATK4
+        // Generates a recalibration table based on various co-variates
         //
-        def haplotypecaller_raw = haplotypecaller_out.map { meta, vcfs, _tbis -> [ meta, vcfs ]}
-        GATK4_MERGEVCFS(
-            haplotypecaller_raw,
-            dict
-        )
-        haplotypecaller_vcf = GATK4_MERGEVCFS.out.vcf
-        ch_versions  = ch_versions.mix(GATK4_MERGEVCFS.out.versions)
+        def bam_variant_calling = Channel.empty()
 
-        //
-        // MODULE: Index the VCF using TABIX
-        //
-        TABIX(
-            haplotypecaller_vcf
-        )
-        ch_versions      = ch_versions.mix(TABIX.out.versions)
+        if (!params.skip_baserecalibration) {
+            // known_sites is made by grouping both the dbsnp and the known indels ressources
+            // they can either or both be optional
+            def known_sites = dbsnp
+                .combine(known_indels)
+                .map { _meta, dbsnp_, known_indels_=[] ->
+                    def file_list = [dbsnp_]
+                    file_list.add(known_indels_)
+                    return [[id:"known_sites"], file_list.flatten().findAll { entry -> entry != [] }]
+                }
+                .collect()
+            def known_sites_tbi = dbsnp_tbi
+                .combine(known_indels_tbi)
+                .map { _meta, dbsnp_, known_indels_=[] ->
+                    def file_list = [dbsnp_]
+                    file_list.add(known_indels_)
+                    return [[id:"known_sites"], file_list.flatten().findAll { entry -> entry != [] }]
+                }
+                .collect()
 
-        def haplotypecaller_indices = TABIX.out.tbi
-            .mix(TABIX.out.csi)
+            def interval_list_recalib = interval_list.map{ _meta, bed -> [bed] }.flatten()
+            def splitncigar_bam_bai_interval = splitncigar_bam_bai.combine(interval_list_recalib)
 
-        def haplotypecaller_vcf_tbi = haplotypecaller_vcf
-            .join(haplotypecaller_indices, failOnDuplicate:true, failOnMismatch: true)
-
-        def final_vcf = Channel.empty()
-
-        //
-        // MODULE: VariantFiltration from GATK4
-        // Filter variant calls based on certain criteria
-        //
-        if (!params.skip_variantfiltration && !params.bam_csi_index ) {
-
-            GATK4_VARIANTFILTRATION(
-                haplotypecaller_vcf_tbi,
+            GATK4_BASERECALIBRATOR(
+                splitncigar_bam_bai_interval,
                 fasta,
                 fasta_fai,
-                dict
+                dict,
+                known_sites,
+                known_sites_tbi
+            )
+            def bqsr_table   = GATK4_BASERECALIBRATOR.out.table
+
+            // Gather QC ch_reports
+            ch_reports  = ch_reports.mix(bqsr_table.map{ _meta, table -> table})
+            ch_versions     = ch_versions.mix(GATK4_BASERECALIBRATOR.out.versions)
+
+            def bam_applybqsr       = splitncigar_bam_bai.join(bqsr_table)
+
+            bam_applybqsr.view { "BAM APPLY BQSR: ${it}" }
+
+            def interval_list_applybqsr = interval_list.map{ _meta, bed -> [bed] }.flatten()
+            def applybqsr_bam_bai_interval = bam_applybqsr.combine(interval_list_applybqsr)
+                .map{ meta, bam, bai, table, interval -> [ meta, bam, bai, table, interval]}
+
+            //
+            // MODULE: ApplyBaseRecalibrator from GATK4
+            // Recalibrates the base qualities of the input reads based on the recalibration table produced by the GATK BaseRecalibrator tool.
+            //
+            RECALIBRATE(
+                params.skip_multiqc,
+                applybqsr_bam_bai_interval,
+                dict.map{ _meta, dict_ -> [dict_] },
+                fasta_fai.map { _meta, fai -> fai },
+                fasta.map{ _meta, fasta_ -> [fasta_] }
             )
 
-            def filtered_vcf = GATK4_VARIANTFILTRATION.out.vcf
-            final_vcf        = filtered_vcf
-            ch_versions      = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions)
+            bam_variant_calling = RECALIBRATE.out.bam
+
+            // Gather QC ch_reports
+            ch_reports  = ch_reports.mix(RECALIBRATE.out.qc.collect{it[1]}.ifEmpty([]))
+            ch_versions = ch_versions.mix(RECALIBRATE.out.versions)
         } else {
-            final_vcf = haplotypecaller_vcf
+            bam_variant_calling = splitncigar_bam_bai
         }
 
-        //
-        // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
-        //
-        def vcf_for_annotation = final_vcf
-            .mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
-
-        def tools_raw = params.tools instanceof List ? params.tools : (params.tools ? params.tools.split(',') : [])
-        def tools_list = tools_raw ? tools_raw.collect { it.toString().trim() }.findAll { it } : []
-        def tools_arg = tools_list.join(',')
-        def tools_ok = tools_list.any { it in ['merge', 'snpeff', 'vep'] }
-
-        if (params.skip_variantannotation || !tools_ok) {
-            error("Variant annotation is required. Set --tools to include merge/snpeff/vep and do not use --skip_variantannotation.")
-        }
-
-        def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
-
-        VCF_ANNOTATE_ALL(
-            vcf_for_annotation.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
-            vep_fasta,
-            tools_arg,
-            snpeff_db,
-            snpeff_cache,
-            vep_genome,
-            vep_species,
-            vep_cache_version,
-            vep_cache,
-            vep_extra_files)
-
-        VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
-        annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
-
-        // Gather used softwares versions
-        ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
-        ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
-
-        def markdup_by_id = bam_bai_for_calling.map { meta, bam, bai ->
-            tuple(meta.id, meta, bam, bai)
-        }
-
-        def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
-            tuple(meta.id, vcf)
-        }
-
-        vcf_by_id.view { "VCF BY ID item = ${it} (size=${it.size()})" }
-
-        markdup_and_vcf_ch = markdup_by_id
-            .join(vcf_by_id, by: 0, failOnMismatch: true)
-            .map { id, meta, bam, bai, vcf ->
-                tuple(meta, bam, bai, vcf)
+        def haplotypecaller_interval_bam = bam_variant_calling.combine(interval_list_split)
+            .map { meta, bam, bai, interval_lists ->
+                def new_meta = meta + [interval_count: interval_lists instanceof List ? interval_lists.size() : 1]
+                [ new_meta, bam, bai, new_meta.interval_count > 1 ? interval_lists : [interval_lists] ]
             }
-        markdup_and_vcf_ch.view { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
-
-        markdup_bams_ch = markdup_and_vcf_ch.map { meta, bam, bai, vcf ->
-            tuple(meta, bam, bai)
-        }
-        markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
-        annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
-
-    } else {
+            .transpose(by:3)
+            .map{ meta, bam, bai, interval_list_ ->
+                [ meta + [ id:meta.id + "_" + interval_list_.baseName, sample:meta.id, variantcaller:'haplotypecaller' ], bam, bai, interval_list_, [] ]
+            }
 
         //
-        // MODULE: CombineGVCFS from GATK4
-        // Merge multiple GVCF files into one GVCF
+        // MODULE: HaplotypeCaller from GATK4
+        // Calls germline SNPs and indels via local re-assembly of haplotypes.
         //
-        GATK4_COMBINEGVCFS(
-            haplotypecaller_out,
-            fasta.map { _meta, fasta_ -> fasta_ },
-            fasta_fai.map { _meta, fai -> fai },
-            dict.map { _meta, dict_ -> dict_ }
+
+        GATK4_HAPLOTYPECALLER(
+            haplotypecaller_interval_bam,
+            fasta,
+            fasta_fai,
+            dict,
+            dbsnp,
+            dbsnp_tbi
         )
-        def haplotypecaller_gvcf = GATK4_COMBINEGVCFS.out.combined_gvcf
-        ch_versions  = ch_versions.mix(GATK4_COMBINEGVCFS.out.versions)
 
-        //
-        // MODULE: Index the VCF using TABIX
-        //
-        TABIXGVCF(haplotypecaller_gvcf)
+        def haplotypecaller_out = GATK4_HAPLOTYPECALLER.out.vcf
+            .join(GATK4_HAPLOTYPECALLER.out.tbi, failOnMismatch:true, failOnDuplicate:true)
+            .map{ meta, vcf, tbi ->
+                def new_meta = meta + [id:meta.sample] - meta.subMap('sample', "interval_count")
+                [ groupKey(new_meta, meta.interval_count), vcf, tbi ]
+            }
+            .groupTuple()
 
-        ch_versions  = ch_versions.mix(TABIXGVCF.out.versions)
+        ch_versions  = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions)
+
+        def haplotypecaller_vcf = Channel.empty()
+        if (params.generate_gvcf) {
+            error("Variant annotation is required; disable --generate_gvcf.")
+        }
+        if (!params.generate_gvcf){
+            //
+            // MODULE: MergeVCFS from GATK4
+            // Merge multiple GVCF files into one VCF
+            //
+            def haplotypecaller_raw = haplotypecaller_out.map { meta, vcfs, _tbis -> [ meta, vcfs ]}
+            GATK4_MERGEVCFS(
+                haplotypecaller_raw,
+                dict
+            )
+            haplotypecaller_vcf = GATK4_MERGEVCFS.out.vcf
+            ch_versions  = ch_versions.mix(GATK4_MERGEVCFS.out.versions)
+
+            //
+            // MODULE: Index the VCF using TABIX
+            //
+            TABIX(
+                haplotypecaller_vcf
+            )
+            ch_versions      = ch_versions.mix(TABIX.out.versions)
+
+            def haplotypecaller_indices = TABIX.out.tbi
+                .mix(TABIX.out.csi)
+
+            def haplotypecaller_vcf_tbi = haplotypecaller_vcf
+                .join(haplotypecaller_indices, failOnDuplicate:true, failOnMismatch: true)
+
+            def final_vcf = Channel.empty()
+
+            //
+            // MODULE: VariantFiltration from GATK4
+            // Filter variant calls based on certain criteria
+            //
+            if (!params.skip_variantfiltration && !params.bam_csi_index ) {
+
+                GATK4_VARIANTFILTRATION(
+                    haplotypecaller_vcf_tbi,
+                    fasta,
+                    fasta_fai,
+                    dict
+                )
+
+                def filtered_vcf = GATK4_VARIANTFILTRATION.out.vcf
+                final_vcf        = filtered_vcf
+                ch_versions      = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions)
+            } else {
+                final_vcf = haplotypecaller_vcf
+            }
+
+            //
+            // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
+            //
+            def vcf_for_annotation = final_vcf
+                .mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
+
+            def tools_raw = params.tools instanceof List ? params.tools : (params.tools ? params.tools.split(',') : [])
+            def tools_list = tools_raw ? tools_raw.collect { it.toString().trim() }.findAll { it } : []
+            def tools_arg = tools_list.join(',')
+            def tools_ok = tools_list.any { it in ['merge', 'snpeff', 'vep'] }
+
+            if (params.skip_variantannotation || !tools_ok) {
+                error("Variant annotation is required. Set --tools to include merge/snpeff/vep and do not use --skip_variantannotation.")
+            }
+
+            def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
+
+            VCF_ANNOTATE_ALL(
+                vcf_for_annotation.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
+                vep_fasta,
+                tools_arg,
+                snpeff_db,
+                snpeff_cache,
+                vep_genome,
+                vep_species,
+                vep_cache_version,
+                vep_cache,
+                vep_extra_files)
+
+            VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
+            annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
+
+            // Gather used softwares versions
+            ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
+            ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
+
+            def markdup_by_id = bam_bai_for_calling.map { meta, bam, bai ->
+                tuple(meta.id, meta, bam, bai)
+            }
+
+            def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
+                tuple(meta.id, vcf)
+            }
+
+            vcf_by_id.view { "VCF BY ID item = ${it} (size=${it.size()})" }
+
+            markdup_and_vcf_ch = markdup_by_id
+                .join(vcf_by_id, by: 0, failOnMismatch: true)
+                .map { id, meta, bam, bai, vcf ->
+                    tuple(meta, bam, bai, vcf)
+                }
+            markdup_and_vcf_ch.view { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
+
+            markdup_bams_ch = markdup_and_vcf_ch.map { meta, bam, bai, vcf ->
+                tuple(meta, bam, bai)
+            }
+            markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
+            annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
+
+        } else {
+
+            //
+            // MODULE: CombineGVCFS from GATK4
+            // Merge multiple GVCF files into one GVCF
+            //
+            GATK4_COMBINEGVCFS(
+                haplotypecaller_out,
+                fasta.map { _meta, fasta_ -> fasta_ },
+                fasta_fai.map { _meta, fai -> fai },
+                dict.map { _meta, dict_ -> dict_ }
+            )
+            def haplotypecaller_gvcf = GATK4_COMBINEGVCFS.out.combined_gvcf
+            ch_versions  = ch_versions.mix(GATK4_COMBINEGVCFS.out.versions)
+
+            //
+            // MODULE: Index the VCF using TABIX
+            //
+            TABIXGVCF(haplotypecaller_gvcf)
+
+            ch_versions  = ch_versions.mix(TABIXGVCF.out.versions)
+
+        }
 
     }
-
-    
 
     //
     // Collate and save software ch_versions
