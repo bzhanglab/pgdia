@@ -412,8 +412,9 @@ workflow RNAVAR {
         def vcf_for_annotation = final_vcf
             .mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
 
-        def tools_arg = params.tools instanceof List ? params.tools.join(',') : params.tools
-        def tools_list = tools_arg ? tools_arg.split(',').collect { it.trim() }.findAll { it } : []
+        def tools_raw = params.tools instanceof List ? params.tools : (params.tools ? params.tools.split(',') : [])
+        def tools_list = tools_raw ? tools_raw.collect { it.toString().trim() }.findAll { it } : []
+        def tools_arg = tools_list.join(',')
         def tools_ok = tools_list.any { it in ['merge', 'snpeff', 'vep'] }
 
         if (params.skip_variantannotation || !tools_ok) {
