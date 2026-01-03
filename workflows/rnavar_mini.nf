@@ -256,6 +256,7 @@ workflow RNAVAR {
     def splitncigar_bam_bai  = SPLITNCIGAR.out.bam_bai
     ch_versions                 = ch_versions.mix(SPLITNCIGAR.out.versions)
 
+    splitncigar_bam_bai.view { "SPLITNCIGAR BAM BAI: ${it}" }
     //
     // MODULE: BaseRecalibrator from GATK4
     // Generates a recalibration table based on various co-variates
@@ -300,6 +301,8 @@ workflow RNAVAR {
         ch_versions     = ch_versions.mix(GATK4_BASERECALIBRATOR.out.versions)
 
         def bam_applybqsr       = splitncigar_bam_bai.join(bqsr_table)
+
+        bam_applybqsr.view { "BAM APPLY BQSR: ${it}" }
 
         def interval_list_applybqsr = interval_list.map{ _meta, bed -> [bed] }.flatten()
         def applybqsr_bam_bai_interval = bam_applybqsr.combine(interval_list_applybqsr)
