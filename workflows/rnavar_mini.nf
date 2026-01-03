@@ -347,7 +347,6 @@ workflow RNAVAR {
                 [ groupKey(new_meta, meta.interval_count), vcf, tbi ]
             }
             .groupTuple()
-            .view { "HAPLOTYPECALLER OUT GROUPED: ${it} (size=${it.size()})" }
 
         ch_versions  = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions)
 
