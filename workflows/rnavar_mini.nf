@@ -415,7 +415,7 @@ workflow RNAVAR {
             //
             // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
             //
-            if((params.tools) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
+            if((!params.skip_variantannotation) && (params.tools) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
 
                 final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
                 def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
