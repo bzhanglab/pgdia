@@ -49,6 +49,29 @@ include { VCF_ANNOTATE_BCFTOOLS } from '../subworkflows/local/vcf_annotate_bcfto
 ========================================================================================
 */
 
+process VCF_DECOMPRESS {
+    tag "$meta.id"
+    label 'process_single'
+
+    conda (params.enable_conda ? 'bioconda::htslib=1.20' : null)
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/htslib:1.20--h5efdd21_2' :
+        'biocontainers/htslib:1.20--h5efdd21_2' }"
+
+    input:
+    tuple val(meta), path(vcf_gz), path(tbi)
+
+    output:
+    tuple val(meta), path("*.vcf"), emit: vcf
+
+    script:
+    def out_name = vcf_gz.baseName.endsWith('.vcf') ? vcf_gz.baseName : "${vcf_gz.baseName}.vcf"
+    """
+    set -euo pipefail
+    bgzip -dc ${vcf_gz} > ${out_name}
+    """
+}
+
 workflow RNAVAR {
     take:
     input
@@ -331,6 +354,9 @@ workflow RNAVAR {
     ch_versions  = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions)
 
     def haplotypecaller_vcf = Channel.empty()
+    if (params.generate_gvcf) {
+        error("Variant annotation is required; disable --generate_gvcf.")
+    }
     if (!params.generate_gvcf){
         //
         // MODULE: MergeVCFS from GATK4
@@ -386,42 +412,34 @@ workflow RNAVAR {
         def vcf_for_annotation = final_vcf
             .mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
 
-        def raw_vcf_by_id = vcf_for_annotation.map { meta, vcf ->
-            tuple(meta.id, meta, vcf, false)
+        def tools_arg = params.tools instanceof List ? params.tools.join(',') : params.tools
+        def tools_list = tools_arg ? tools_arg.split(',').collect { it.trim() }.findAll { it } : []
+        def tools_ok = tools_list.any { it in ['merge', 'snpeff', 'vep'] }
+
+        if (params.skip_variantannotation || !tools_ok) {
+            error("Variant annotation is required. Set --tools to include merge/snpeff/vep and do not use --skip_variantannotation.")
         }
 
-        def ann_vcf_by_id = Channel.empty()
-        if((!params.skip_variantannotation) && (params.tools) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
-            def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
+        def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
 
-            VCF_ANNOTATE_ALL(
-                vcf_for_annotation.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
-                vep_fasta,
-                params.tools,
-                snpeff_db,
-                snpeff_cache,
-                vep_genome,
-                vep_species,
-                vep_cache_version,
-                vep_cache,
-                vep_extra_files)
+        VCF_ANNOTATE_ALL(
+            vcf_for_annotation.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
+            vep_fasta,
+            tools_arg,
+            snpeff_db,
+            snpeff_cache,
+            vep_genome,
+            vep_species,
+            vep_cache_version,
+            vep_cache,
+            vep_extra_files)
 
-            ann_vcf_by_id = VCF_ANNOTATE_ALL.out.vcf_ann.map{meta, vcf, tbi -> tuple(meta.id, meta, vcf, true)}
+        VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
+        annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
 
-            // Gather used softwares versions
-            ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
-            ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
-        }
-
-        annotated_vcf_ch = raw_vcf_by_id
-            .mix(ann_vcf_by_id)
-            .groupTuple()
-            .map { id, metas, vcfs, ann_flags ->
-                def idx = ann_flags.indexOf(true)
-                def meta = idx >= 0 ? metas[idx] : metas[0]
-                def vcf = idx >= 0 ? vcfs[idx] : vcfs[0]
-                tuple(meta, vcf)
-            }
+        // Gather used softwares versions
+        ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
+        ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
 
         markdup_bams_ch = bam_bai_for_calling
         markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
