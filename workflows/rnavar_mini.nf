@@ -422,7 +422,9 @@ workflow RNAVAR {
 
                 final_vcf.view { "FINAL_VCF item=$it" }
 
-                vcf_for_vep = final_vcf.map {meta, vcf ->  [ meta + [ file_name: vcf.baseName ], vcf ]}
+                def vcf_for_vep = final_vcf.map { meta, vcf ->
+                    [ meta + [ file_name: vcf.baseName ], vcf, [] ]
+                }
                 vcf_for_vep.ifEmpty { error("VEP input VCF channel is empty") }
 
                 vep_fasta.view { "VEP ch_fasta: $it" }        // expect [meta, fasta] or [] if empty
