@@ -217,7 +217,7 @@ workflow RNAVAR {
 
         star_markdup_bam_bai_ch = BAM_MARKDUPLICATES_PICARD.out.bam
             .join(markduplicate_indices, failOnDuplicate:true, failOnMismatch:true)
-            .mix(PREPARE_ALIGNMENT.out.bam)
+            .map { meta, bam, bai -> tuple(meta, bam, bai) }
 
         star_markdup_bam_bai_ch.view { "STAR MARKDUP BAM BAI: ${it}" }
 
@@ -233,7 +233,14 @@ workflow RNAVAR {
         // Splits reads that contain Ns in their cigar string(e.g. spanning splicing events in RNAseq data).
         //
 
-        SPLITNCIGAR(star_markdup_bam_bai_ch,
+        def input_bam_bai_ch = parsed_input.bam
+            .mix(PREPARE_ALIGNMENT.out.bam)
+            .join( parsed_input.bai.mix(PREPARE_ALIGNMENT.out.bai), failOnMismatch:true, failOnDuplicate:true )
+            .map { meta, bam, bai -> tuple(meta, bam, bai) }
+
+        bam_bai_for_calling = input_bam_bai_ch.mix(star_markdup_bam_bai_ch)
+
+        SPLITNCIGAR(bam_bai_for_calling,
             fasta,
             fasta_fai,
             dict,
@@ -430,9 +437,11 @@ workflow RNAVAR {
                 ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
                 ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
 
-                def markdup_by_id = star_markdup_bam_bai_ch.map { meta, bam, bai ->
+                def markdup_by_id = bam_bai_for_calling.map { meta, bam, bai ->
                     tuple(meta.id, meta, bam, bai)
                 }
+
+                markdup_by_id.view { "MARKDUP BY ID item = ${it} (size=${it.size()})" }
 
                 def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
                     tuple(meta.id, vcf)
