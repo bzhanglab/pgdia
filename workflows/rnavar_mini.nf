@@ -464,7 +464,7 @@ workflow RNAVAR {
             .map { id, meta, bam, bai, vcf ->
                 tuple(meta, bam, bai, vcf)
             }
-        markdup_and_vcf_ch.viww { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
+        markdup_and_vcf_ch.view { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
 
         markdup_bams_ch = markdup_and_vcf_ch.map { meta, bam, bai, vcf ->
             tuple(meta, bam, bai)
