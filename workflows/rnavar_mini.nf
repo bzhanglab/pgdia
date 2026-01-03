@@ -165,6 +165,8 @@ workflow RNAVAR {
     def interval_list = GATK4_BEDTOINTERVALLIST.out.interval_list
     ch_versions = ch_versions.mix(GATK4_BEDTOINTERVALLIST.out.versions)
 
+    
+
     //
     // MODULE: Scatter one interval-list into many interval-files using GATK4 IntervalListTools
     //
