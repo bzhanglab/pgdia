@@ -240,7 +240,7 @@ workflow PGDIA {
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
-            .join(isoform_fasta_gated, by: 0, failOnMismatch: true)
+            .join(isoform_fasta_gated, by: 0, reminder: true)
             .map { id, var_fa, novel_fa ->
                 tuple(id, var_fa, novel_fa)
             }
