@@ -221,10 +221,13 @@ workflow RNAVAR {
         def markduplicate_indices = BAM_MARKDUPLICATES_PICARD.out.bai
             .mix(BAM_MARKDUPLICATES_PICARD.out.csi)
             .mix(BAM_MARKDUPLICATES_PICARD.out.crai)
+        markduplicate_indices.view { "MARKDUP INDEX: ${it}" }
 
         star_markdup_bam_bai_ch = BAM_MARKDUPLICATES_PICARD.out.bam
             .join(markduplicate_indices, by: [0], failOnMismatch:true)
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
+
+        star_markdup_bam_bai_ch.view { "STAR MARKDUP BAM BAI: ${it}" }
 
         //Gather QC ch_reports
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.metrics.collect{it[1]}.ifEmpty([]))
