@@ -445,9 +445,12 @@ workflow RNAVAR {
                     tuple(meta.id, meta, vcf)
                 }
 
+                def vcf_by_id_checked = vcf_by_id.ifEmpty {
+                    error("No annotated VCF items available for join; check VCF_ANNOTATE_ALL and interval list generation.")
+                }
 
                 markdup_and_vcf_ch = markdup_by_id
-                    .join(vcf_by_id, by: [0], failOnMismatch: true)
+                    .join(vcf_by_id_checked, by: [0], failOnMismatch: true)
                     .map { id, bam, bai, meta, vcf ->
                         tuple(meta, bam, bai, vcf)
                     }
