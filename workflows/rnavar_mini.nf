@@ -427,9 +427,9 @@ workflow RNAVAR {
                 VCF_ANNOTATE_ENSEMBLVEP(vcf_for_vep, fasta, vep_genome, vep_species, vep_cache_version, vep_cache, vep_extra_files)
 
                 
-                VCF_ANNOTATE_ENSEMBLVEP.out.vcf_ann.view { "ANNOTATED_VCF item=$it" }
+                VCF_ANNOTATE_ENSEMBLVEP.out.vcf_tbi.view { "ANNOTATED_VCF item=$it" }
 
-                VCF_DECOMPRESS(VCF_ANNOTATE_ENSEMBLVEP.out.vcf_ann)
+                VCF_DECOMPRESS(VCF_ANNOTATE_ENSEMBLVEP.out.vcf_tbi)
                 annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
 
 
