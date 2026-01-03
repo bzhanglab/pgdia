@@ -436,19 +436,19 @@ workflow RNAVAR {
                 ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
 
                 def markdup_by_id = genome_bam_bai.map { meta, bam, bai ->
-                    tuple(meta.id, meta, bam, bai)
+                    tuple(meta.id, bam, bai)
                 }
 
                 markdup_by_id.view { "MARKDUP_BY_ID item=$it" }
-                
+
                 def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
-                    tuple(meta.id, vcf)
+                    tuple(meta.id, meta, vcf)
                 }
 
 
                 markdup_and_vcf_ch = markdup_by_id
                     .join(vcf_by_id, by: [0], failOnMismatch: true)
-                    .map { id, meta, bam, bai, vcf ->
+                    .map { id, bam, bai, meta, vcf ->
                         tuple(meta, bam, bai, vcf)
                     }
 
