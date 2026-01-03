@@ -156,7 +156,7 @@ workflow NFCORE_RNAVAR {
 
     /*
      * Call your modified RNAVAR workflow
-     * (Your RNAVAR should emit markdup_and_vcf.)
+     * (Your RNAVAR should emit markdup_bams and annotated_vcf.)
      */
     RNAVAR(
       samplesheet,
@@ -185,8 +185,8 @@ workflow NFCORE_RNAVAR {
     ch_versions = ch_versions.mix(RNAVAR.out.versions)
 
   emit:
-    // Downstream expects: [ val(meta), path(bam), path(bai), path(vcf) ]
-    markdup_and_vcf = RNAVAR.out.markdup_and_vcf
+    markdup_bams = RNAVAR.out.markdup_bams
+    annotated_vcf = RNAVAR.out.annotated_vcf
 
     multiqc_report = RNAVAR.out.multiqc_report
     versions       = ch_versions
@@ -209,9 +209,9 @@ workflow PGDIA {
             align
         )
 
-        def rnavar_joined = rnavar_run.markdup_and_vcf
-        def ch_annotated_vcf = rnavar_joined.map { meta, bam, bai, vcf -> tuple(meta, vcf) }
-        def ch_markdup_bams = rnavar_joined.map { meta, bam, bai, vcf -> tuple(meta, bam, bai) }
+        def ch_annotated_vcf = rnavar_run.annotated_vcf
+        def ch_markdup_bams = rnavar_run.markdup_bams
+        def vcf_done = ch_annotated_vcf.collect()
 
         GENERATE_VARIANT_DB(
             ch_annotated_vcf
@@ -232,11 +232,15 @@ workflow PGDIA {
             RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
         )
         isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
+        def isoform_fasta_gated = vcf_done
+            .map { null }
+            .concat(isoform_fasta)
+            .filter { it != null }
          
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
-            .join(isoform_fasta, by: 0, failOnMismatch: true)
+            .join(isoform_fasta_gated, by: 0, failOnMismatch: true)
             .map { id, var_fa, novel_fa ->
                 tuple(id, var_fa, novel_fa)
             }

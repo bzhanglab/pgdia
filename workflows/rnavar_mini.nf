@@ -186,7 +186,8 @@ workflow RNAVAR {
     //
     // SUBWORKFLOW: Perform read alignment using STAR aligner
     //
-    def markdup_and_vcf_ch = Channel.empty()
+    def markdup_bams_ch = Channel.empty()
+    def annotated_vcf_ch = Channel.empty()
 
     if (params.aligner == 'star') {
         FASTQ_ALIGN_STAR(
@@ -220,6 +221,10 @@ workflow RNAVAR {
         def genome_bam_bai = BAM_MARKDUPLICATES_PICARD.out.bam
             .join(markduplicate_indices, failOnDuplicate:true, failOnMismatch:true)
             .mix(PREPARE_ALIGNMENT.out.bam)
+
+        markdup_bams_ch = genome_bam_bai.map { meta, bam, bai ->
+            tuple(meta, bam, bai)
+        }
 
 
         //Gather QC ch_reports
@@ -428,32 +433,12 @@ workflow RNAVAR {
                     vep_extra_files)
 
                 VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
-                def annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
+                annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
 
 
                 // Gather used softwares versions
                 ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
                 ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
-
-                def markdup_by_id = genome_bam_bai.map { meta, bam, bai ->
-                    tuple(meta.id, bam, bai)
-                }
-
-                markdup_by_id.view { "MARKDUP_BY_ID item=$it" }
-
-                def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
-                    tuple(meta.id, meta, vcf)
-                }
-
-                def vcf_by_id_checked = vcf_by_id.ifEmpty {
-                    error("No annotated VCF items available for join; check VCF_ANNOTATE_ALL and interval list generation.")
-                }
-
-                markdup_and_vcf_ch = markdup_by_id
-                    .join(vcf_by_id_checked, by: [0], failOnMismatch: true)
-                    .map { id, bam, bai, meta, vcf ->
-                        tuple(meta, bam, bai, vcf)
-                    }
 
                 }
 
@@ -522,8 +507,9 @@ workflow RNAVAR {
     }
 
     emit:
-    markdup_and_vcf = markdup_and_vcf_ch  // channel: [ val(meta), path(/path/to/sample.bam), path(/path/to/sample.bai), path(/path/to/sample.vcf) ]
-    
+    markdup_bams = markdup_bams_ch        // channel: [ val(meta), path(/path/to/sample.bam), path(/path/to/sample.bai) ]
+    annotated_vcf = annotated_vcf_ch      // channel: [ val(meta), path(/path/to/sample.vcf) ]
+
     multiqc_report = val_multiqc_report     // channel: /path/to/multiqc_report.html
     versions = ch_versions                  // channel: [ path(versions.yml) ]
 }
