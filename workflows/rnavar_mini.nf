@@ -181,10 +181,7 @@ workflow RNAVAR {
     //
     // SUBWORKFLOW: Perform read alignment using STAR aligner
     //
-    def markdup_bams_ch = Channel.empty()
-    def annotated_vcf_ch = Channel.empty()
     def markdup_and_vcf_ch = Channel.empty()
-    def star_markdup_bam_bai_ch = Channel.empty()
 
     if (params.aligner == 'star') {
         FASTQ_ALIGN_STAR(
@@ -431,7 +428,9 @@ workflow RNAVAR {
                     vep_extra_files)
 
                 VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
-                annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
+                def annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
+
+                annotated_vcf_ch.view { "ANNOTATED VCF CH: ${it}" }
 
                 // Gather used softwares versions
                 ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
@@ -456,10 +455,6 @@ workflow RNAVAR {
                     }
                 markdup_and_vcf_ch.view { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
 
-                markdup_bams_ch = markdup_and_vcf_ch.map { meta, bam, bai, vcf ->
-                    tuple(meta, bam, bai)
-                }
-                markdup_bams_ch.view { "MARKDUP_BAMS item = ${it} (size=${it.size()})" }
                 annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
             }
 
