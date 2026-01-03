@@ -41,7 +41,7 @@ include { softwareVersionsToYAML    } from '../subworkflows/nf-core/utils_nfcore
 
 // plugin
 include { paramsSummaryMap          } from 'plugin/nf-schema'
-include { VCF_ANNOTATE_BCFTOOLS } from '../subworkflows/local/vcf_annotate_bcftools/main.nf'
+include { VCF_ANNOTATE_ENSEMBLVEP   } from '../subworkflows/nf-core/vcf_annotate_ensemblvep/main'
 
 /*
 ========================================================================================
@@ -422,28 +422,20 @@ workflow RNAVAR {
 
                 final_vcf.view { "FINAL_VCF item=$it" }
 
-                VCF_ANNOTATE_ALL(
-                    final_vcf.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
-                    vep_fasta,
-                    params.tools,
-                    snpeff_db,
-                    snpeff_cache,
-                    vep_genome,
-                    vep_species,
-                    vep_cache_version,
-                    vep_cache,
-                    vep_extra_files)
+                vcf_for_vep = final_vcf.map {meta, vcf ->  [ meta + [ file_name: vcf.baseName ], vcf ]}
+
+                VCF_ANNOTATE_ENSEMBLVEP(vcf_for_vep, fasta, vep_genome, vep_species, vep_cache_version, vep_cache, vep_extra_files)
 
                 
-                VCF_ANNOTATE_ALL.out.vcf_ann.view { "ANNOTATED_VCF item=$it" }
+                VCF_ANNOTATE_ENSEMBLVEP.out.vcf_ann.view { "ANNOTATED_VCF item=$it" }
 
-                VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
+                VCF_DECOMPRESS(VCF_ANNOTATE_ENSEMBLVEP.out.vcf_ann)
                 annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
 
 
                 // Gather used softwares versions
-                ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
-                ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
+                ch_versions = ch_versions.mix(VCF_ANNOTATE_ENSEMBLVEP.out.versions)
+                ch_reports = ch_reports.mix(VCF_ANNOTATE_ENSEMBLVEP.out.reports)
 
                 }
 
