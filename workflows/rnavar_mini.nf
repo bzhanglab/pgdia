@@ -457,11 +457,14 @@ workflow RNAVAR {
             tuple(meta.id, vcf)
         }
 
+        vcf_by_id.view { "VCF BY ID item = ${it} (size=${it.size()})" }
+
         markdup_and_vcf_ch = markdup_by_id
             .join(vcf_by_id, by: 0, failOnMismatch: true)
             .map { id, meta, bam, bai, vcf ->
                 tuple(meta, bam, bai, vcf)
             }
+        markdup_and_vcf_ch.viww { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
 
         markdup_bams_ch = markdup_and_vcf_ch.map { meta, bam, bai, vcf ->
             tuple(meta, bam, bai)
