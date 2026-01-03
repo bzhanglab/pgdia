@@ -235,9 +235,7 @@ workflow RNAVAR {
         //
         
 
-        bam_bai_for_calling = genome_bam_bai
-
-        SPLITNCIGAR(bam_bai_for_calling,
+        SPLITNCIGAR(genome_bam_bai,
             fasta,
             fasta_fai,
             dict,
@@ -437,11 +435,12 @@ workflow RNAVAR {
                 ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
                 ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
 
-                def markdup_by_id = bam_bai_for_calling.map { meta, bam, bai ->
+                def markdup_by_id = genome_bam_bai.map { meta, bam, bai ->
                     tuple(meta.id, meta, bam, bai)
                 }
 
-
+                markdup_by_id.view { "MARKDUP_BY_ID item=$it" }
+                
                 def vcf_by_id = annotated_vcf_ch.map { meta, vcf ->
                     tuple(meta.id, vcf)
                 }
