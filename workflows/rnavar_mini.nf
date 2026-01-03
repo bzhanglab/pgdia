@@ -233,10 +233,10 @@ workflow RNAVAR {
         // Splits reads that contain Ns in their cigar string(e.g. spanning splicing events in RNAseq data).
         //
 
-        def input_bam_bai_ch = parsed_input.bam
-            .mix(PREPARE_ALIGNMENT.out.bam)
-            .join( parsed_input.bai.mix(PREPARE_ALIGNMENT.out.bai), failOnMismatch:true, failOnDuplicate:true )
+        def input_bam_bai_ch = PREPARE_ALIGNMENT.out.bam
             .map { meta, bam, bai -> tuple(meta, bam, bai) }
+            .view { "PREPARE ALIGNMENT BAM BAI: ${it}" }
+        
 
         bam_bai_for_calling = input_bam_bai_ch.mix(star_markdup_bam_bai_ch)
 
