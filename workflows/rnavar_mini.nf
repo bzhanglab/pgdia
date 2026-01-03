@@ -456,11 +456,14 @@ workflow RNAVAR {
 
                 vcf_by_id.view { "VCF BY ID item = ${it} (size=${it.size()})" }
 
-                markdup_and_vcf_ch = markdup_by_id
-                    .join(vcf_by_id, by: 0, failOnMismatch: true)
-                    .map { id, meta, bam, bai, vcf ->
-                        tuple(meta, bam, bai, vcf)
-                    }
+        def markdup_by_id_gate = markdup_by_id.collect().flatMap { it }
+        def vcf_by_id_gate     = vcf_by_id.collect().flatMap { it }
+
+        markdup_and_vcf_ch = markdup_by_id_gate
+            .join(vcf_by_id_gate, by: 0, failOnMismatch: true)
+            .map { id, meta, bam, bai, vcf ->
+                tuple(meta, bam, bai, vcf)
+            }
                 markdup_and_vcf_ch.view { "MARKDUP_AND_VCF item = ${it} (size=${it.size()})" }
 
                 annotated_vcf_ch.view { "ANNOTATED_VCF item = ${it} (size=${it.size()})" }
