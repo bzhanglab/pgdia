@@ -420,6 +420,8 @@ workflow RNAVAR {
                 final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
                 def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
 
+                final_vcf.view { "FINAL_VCF item=$it" }
+
                 VCF_ANNOTATE_ALL(
                     final_vcf.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
                     vep_fasta,
@@ -431,6 +433,9 @@ workflow RNAVAR {
                     vep_cache_version,
                     vep_cache,
                     vep_extra_files)
+
+                
+                VCF_ANNOTATE_ALL.out.vcf_ann.view { "ANNOTATED_VCF item=$it" }
 
                 VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
                 annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
