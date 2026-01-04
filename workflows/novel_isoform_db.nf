@@ -78,7 +78,7 @@ process transdecoder_longorfs {
     """
     set -euo pipefail
 
-    rm -rf "\$(basename "$fasta").transdecoder_dir"
+    rm -rf "*.transdecoder_dir"
     
     TransDecoder.LongOrfs -t ${fasta} -m 30 -O .
 
