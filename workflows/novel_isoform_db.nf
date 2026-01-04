@@ -113,6 +113,8 @@ process transdecoder_predict {
     # TransDecoder outputs a peptide fasta like: <fasta>.transdecoder.pep
     pep=\$(ls -1 *.transdecoder.pep | head -n 1)
     cp "\$pep" "${id}.pep.fasta"
+
+    rm -rf "*.transdecoder_dir"
     """
 }
 
