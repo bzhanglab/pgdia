@@ -415,31 +415,29 @@ workflow RNAVAR {
             //
             // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
             //
-            if((!params.skip_variantannotation) && (params.tools) && (params.tools.contains('vep'))) {
+            if((!params.skip_variantannotation) && (params.tools) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
 
                 final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
                 def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
 
-                final_vcf.view { "FINAL_VCF item=$it" }
-                vep_genome.view { "VEP genome: $it" }
-                vep_species.view { "VEP species: $it" }
-                vep_cache_version.view { "VEP cache_version: $it" }
-                
+                VCF_ANNOTATE_ALL(
+                    final_vcf.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
+                    vep_fasta,
+                    params.tools,
+                    snpeff_db,
+                    snpeff_cache,
+                    vep_genome,
+                    vep_species,
+                    vep_cache_version,
+                    vep_cache,
+                    vep_extra_files)
 
-                VCF_ANNOTATE_ENSEMBLVEP(final_vcf.map { meta, vcf ->
-                    [ meta + [ file_name: vcf.baseName ], vcf, [] ]
-                    }, vep_fasta, vep_genome, vep_species, vep_cache_version, vep_cache, vep_extra_files)
-
-                
-                VCF_ANNOTATE_ENSEMBLVEP.out.vcf_tbi.view { "ANNOTATED_VCF item=$it" }
-
-                VCF_DECOMPRESS(VCF_ANNOTATE_ENSEMBLVEP.out.vcf_tbi)
+                VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
                 annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
 
-
                 // Gather used softwares versions
-                ch_versions = ch_versions.mix(VCF_ANNOTATE_ENSEMBLVEP.out.versions)
-                ch_reports = ch_reports.mix(VCF_ANNOTATE_ENSEMBLVEP.out.reports)
+                ch_versions = ch_versions.mix(VCF_ANNOTATE_ALL.out.versions)
+                ch_reports = ch_reports.mix(VCF_ANNOTATE_ALL.out.reports)
 
                 
             }
