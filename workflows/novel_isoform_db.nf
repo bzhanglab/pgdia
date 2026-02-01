@@ -77,8 +77,9 @@ process transdecoder_longorfs {
   script:
     """
     set -euo pipefail
+    shopt -s nullglob
 
-    rm -rf "*.transdecoder_dir"
+    rm -rf ./*.transdecoder_dir
     
     TransDecoder.LongOrfs -t ${fasta} -m 30 -O .
 
@@ -114,7 +115,7 @@ process transdecoder_predict {
     pep=\$(ls -1 *.transdecoder.pep | head -n 1)
     cp "\$pep" "${id}.pep.fasta"
 
-    rm -rf "*.transdecoder_dir"
+    rm -rf ./*.transdecoder_dir"
     """
 }
 
