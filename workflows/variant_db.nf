@@ -72,8 +72,6 @@ process mod_var_peptides {
     """
     set -euo pipefail
 
-    python3 -m pip install --no-cache-dir --user biopython
-
     python3 ${projectDir}/bin/get_var_aa_change.py \
       "${annotated_vcf}" \
       "${var_peptides}" \
