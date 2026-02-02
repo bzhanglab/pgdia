@@ -67,13 +67,14 @@ process filter_gtf_by_fai {
 
 
 
-process transdecoder_longorfs {
+process transdecoder_longorfs_predict {
   tag "${id}"
 
   input:
     tuple val(id), path(fasta)
   output:
-    tuple val(id), path(fasta), path("*.transdecoder_dir")
+    tuple val(id), path("${id}.pep.fasta")
+
   script:
     """
     set -euo pipefail
@@ -83,41 +84,18 @@ process transdecoder_longorfs {
     
     TransDecoder.LongOrfs -t ${fasta} -m 30 -O .
 
-    """
-}
+    TransDecoder.Predict -t "${fasta}" --retain_long_orfs_length 30 -O .
 
-process transdecoder_predict {
-  tag "${id}"
-
-  input:
-    tuple val(id), path(fasta), path(td_dir)
-
-  output:
-    tuple val(id), path("${id}.pep.fasta")
-  
-  script:
-    """
-    set -euo pipefail
-
-    # Predict expects: <basename(fasta)>.transdecoder_dir
-    expected_dir="\$(basename "$fasta").transdecoder_dir"
-
-    # Nextflow may stage td_dir under a different name, so link it
-    if [[ ! -d "\$expected_dir" ]]; then
-      ln -s "$td_dir" "\$expected_dir"
-    fi
-
-    fasta=\$(ls -1 *.fasta | head -n 1)
-    
-    TransDecoder.Predict -t "\$fasta" --retain_long_orfs_length 30 -O .
-
-    # TransDecoder outputs a peptide fasta like: <fasta>.transdecoder.pep
+    # Copy output to a stable name
     pep=\$(ls -1 *.transdecoder.pep | head -n 1)
     cp "\$pep" "${id}.pep.fasta"
 
-    rm -rf ./*.transdecoder*
+    # Remove intermediate TransDecoder outputs (keeps only ${id}.pep.fasta as declared output)
+    rm -rf ./*.transdecoder_dir ./*.transdecoder*
+
     """
 }
+
 
 workflow GENERATE_NOVEL_ISOFORM_DB {
 
@@ -181,11 +159,8 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
     novel_fasta_ch = GFFREAD.out.gffread_fasta
     novel_fasta_by_id_ch = novel_fasta_ch.map { meta, fa -> tuple(meta.id, fa) }
 
-    // 9) TransDecoder.LongOrfs
-    longorfs_ch = transdecoder_longorfs(novel_fasta_by_id_ch)
-
-    // 10) TransDecoder.Predict
-    predict_pep_ch = transdecoder_predict(longorfs_ch)
+    // 9) TransDecoder.LongOrfs TransDecoder.Predict
+    predict_pep_ch =  transdecoder_longorfs_predict(novel_fasta_by_id_ch)
 
   emit:
     isoform_db = predict_pep_ch
