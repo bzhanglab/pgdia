@@ -45,7 +45,7 @@ process gen_var_db {
     set -euo pipefail
 
     python3 -m pypgatk.pypgatk_cli vcf-to-proteindb \
-      --vcf "${annotated_vcf}" \
+      --vcf_file "${annotated_vcf}" \
       --input_fasta "${ref_fasta}" \
       --gene_annotations_gtf "${ref_gtf}" \
       --include_consequences missense_variant,frameshift_variant,inframe_insertion,inframe_deletion \
