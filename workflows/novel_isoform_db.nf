@@ -115,7 +115,7 @@ process transdecoder_predict {
     pep=\$(ls -1 *.transdecoder.pep | head -n 1)
     cp "\$pep" "${id}.pep.fasta"
 
-    rm -rf ./*.transdecoder_dir
+    rm -rf ./*.transdecoder*
     """
 }
 
