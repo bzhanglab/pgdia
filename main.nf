@@ -27,6 +27,7 @@ include { RNAVAR_MINI                          } from './workflows/rnavar_mini'
 include { PIPELINE_INITIALISATION         } from './subworkflows/local/utils_nfcore_rnavar_pipeline'
 include { PREPARE_GENOME                  } from './subworkflows/local/prepare_genome'
 include { DOWNLOAD_CACHE_SNPEFF_VEP       } from './subworkflows/local/download_cache_snpeff_vep'
+include { ANNOTATION_CACHE_INITIALISATION } from './subworkflows/local/annotation_cache_initialisation'
 
 
 include { RUN_STRINGTIE } from './workflows/stringtie/stringtie'
@@ -152,7 +153,23 @@ workflow NFCORE_RNAVAR {
       vep_cache    = DOWNLOAD_CACHE_SNPEFF_VEP.out.ensemblvep_cache.map { meta, cache -> [ cache ] }
 
       ch_versions  = ch_versions.mix(DOWNLOAD_CACHE_SNPEFF_VEP.out.versions)
-    } 
+    } else {
+        // Looks for cache information either locally or on the cloud
+        ANNOTATION_CACHE_INITIALISATION(
+            (params.snpeff_cache && params.tools && (params.tools.split(',').contains("snpeff") || params.tools.split(',').contains('merge'))),
+            params.snpeff_cache,
+            params.snpeff_db,
+            (params.vep_cache && params.tools && (params.tools.split(',').contains("vep") || params.tools.split(',').contains('merge'))),
+            params.vep_cache,
+            params.vep_species,
+            params.vep_cache_version,
+            params.vep_genome,
+            params.vep_custom_args,
+            "Please refer to https://nf-co.re/rnavar/docs/usage/#how-to-customise-snpeff-and-vep-annotation for more information.")
+
+            snpeff_cache = ANNOTATION_CACHE_INITIALISATION.out.snpeff_cache
+            vep_cache    = ANNOTATION_CACHE_INITIALISATION.out.ensemblvep_cache
+    }
 
     /*
      * Call your modified RNAVAR workflow
