@@ -272,8 +272,6 @@ workflow RNAVAR_MINI {
 
             def bam_applybqsr       = splitncigar_bam_bai.join(bqsr_table)
 
-            bam_applybqsr.view { "BAM APPLY BQSR: ${it}" }
-
             def interval_list_applybqsr = interval_list.map{ _meta, bed -> [bed] }.flatten()
             def applybqsr_bam_bai_interval = bam_applybqsr.combine(interval_list_applybqsr)
                 .map{ meta, bam, bai, table, interval -> [ meta, bam, bai, table, interval]}

@@ -144,7 +144,7 @@ for change in aa_changes:
 
 mis_translation_cnt = 0
 # Read the original translated FASTA file
-with (open(translated_fasta_path, "r") as fasta_file):
+with open(translated_fasta_path, "r") as fasta_file:
     protein_records = SeqIO.parse(fasta_file, "fasta")
 
     for record in protein_records:
