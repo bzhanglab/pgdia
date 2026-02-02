@@ -30,7 +30,7 @@ process gen_var_db {
   container 'python:3.11-slim'
   container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
       'https://depot.galaxyproject.org/singularity/pypgatk:0.0.24--py_0' :
-      'quay.io/biocontainers/pypgatk:0.0.4--py_0' }"
+      'quay.io/biocontainers/pypgatk:0.0.24--py_0' }"
 
   input:
     tuple val(meta), path(annotated_vcf)
