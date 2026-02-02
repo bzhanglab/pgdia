@@ -59,10 +59,7 @@ process gen_var_db {
 process mod_var_peptides {
   tag "${meta.id}"
   
-  conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
-  container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/python:3.8.3' :
-        'quay.io/biocontainers/python:3.8.3' }"
+  container 'quay.io/biocontainers/biopython:1.81--py311h38be061_0'
 
   input:
     tuple val(meta), path(annotated_vcf), path(var_peptides)
