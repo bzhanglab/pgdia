@@ -23,7 +23,7 @@ params.vep_genome        = getGenomeAttribute('vep_genome')
 params.vep_species       = getGenomeAttribute('vep_species')
 
 
-include { RNAVAR                          } from './workflows/rnavar_mini'
+include { RNAVAR_MINI                          } from './workflows/rnavar_mini'
 include { PIPELINE_INITIALISATION         } from './subworkflows/local/utils_nfcore_rnavar_pipeline'
 include { PREPARE_GENOME                  } from './subworkflows/local/prepare_genome'
 include { DOWNLOAD_CACHE_SNPEFF_VEP       } from './subworkflows/local/download_cache_snpeff_vep'
@@ -158,7 +158,7 @@ workflow NFCORE_RNAVAR {
      * Call your modified RNAVAR workflow
      * (Your RNAVAR should emit markdup_bams and annotated_vcf.)
      */
-    RNAVAR(
+    RNAVAR_MINI(
       samplesheet,
       ch_dbsnp,
       ch_dbsnp_tbi,
@@ -182,13 +182,13 @@ workflow NFCORE_RNAVAR {
       seq_platform
     )
 
-    ch_versions = ch_versions.mix(RNAVAR.out.versions)
+    ch_versions = ch_versions.mix(RNAVAR_MINI.out.versions)
 
   emit:
-    markdup_bams = RNAVAR.out.markdup_bams
-    annotated_vcf = RNAVAR.out.annotated_vcf
+    markdup_bams = RNAVAR_MINI.out.markdup_bams
+    annotated_vcf = RNAVAR_MINI.out.annotated_vcf
 
-    multiqc_report = RNAVAR.out.multiqc_report
+    multiqc_report = RNAVAR_MINI.out.multiqc_report
     versions       = ch_versions
 }
 
