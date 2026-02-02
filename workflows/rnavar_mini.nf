@@ -406,7 +406,9 @@ workflow RNAVAR {
                 final_vcf = haplotypecaller_vcf
             }
 
-            final_vcf.map { meta, vcf -> meta.id }.view { "VCF_FOR_ANN id=$it" }
+            final_vcf = final_vcf.tap { meta, vcf ->
+                println "VCF_FOR_ANN id=${meta.id}"
+            }
 
 
             //
@@ -416,6 +418,8 @@ workflow RNAVAR {
 
                 final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
                 def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
+
+                
 
                 VCF_ANNOTATE_ALL(
                     final_vcf.map{meta, vcf -> [ meta + [ file_name: vcf.baseName ], vcf ] },
