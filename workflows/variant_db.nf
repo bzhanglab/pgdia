@@ -59,7 +59,10 @@ process gen_var_db {
 process mod_var_peptides {
   tag "${meta.id}"
   
-  container 'biocontainers/biopython:v1.73dfsg-1-deb-py3_cv1'
+  conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
+  container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/python:3.8.3' :
+        'quay.io/biocontainers/python:3.8.3' }"
 
 
   input:
@@ -71,6 +74,8 @@ process mod_var_peptides {
   script:
     """
     set -euo pipefail
+
+    python3 -m pip install --no-cache-dir biopython
 
     python3 ${projectDir}/bin/get_var_aa_change.py \
       "${annotated_vcf}" \
