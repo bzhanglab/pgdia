@@ -59,7 +59,8 @@ process gen_var_db {
 process mod_var_peptides {
   tag "${meta.id}"
   
-  container 'quay.io/biocontainers/biopython:1.81--py311h38be061_0'
+  container 'biocontainers/biopython:v1.73dfsg-1-deb-py3_cv1'
+
 
   input:
     tuple val(meta), path(annotated_vcf), path(var_peptides)
