@@ -180,9 +180,6 @@ workflow RNAVAR {
         interval_list_split = interval_list.map { _meta, bed -> bed }
     }
 
-    interval_list_split.view { "INTERVAL_LIST item=$it" }
-
-
     //
     // SUBWORKFLOW: Perform read alignment using STAR aligner
     //
