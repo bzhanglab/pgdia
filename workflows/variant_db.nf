@@ -29,7 +29,7 @@ process gen_var_db {
   tag {meta.id}
   container 'python:3.11-slim'
   container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-      'https://depot.galaxyproject.org/singularity/pypgatk:0.0.4--py_0' :
+      'https://depot.galaxyproject.org/singularity/pypgatk:0.0.24--py_0' :
       'quay.io/biocontainers/pypgatk:0.0.4--py_0' }"
 
   input:
@@ -45,7 +45,7 @@ process gen_var_db {
     set -euo pipefail
 
     python3 -m pypgatk.pypgatk_cli vcf-to-proteindb \
-      --vcf_file "${annotated_vcf}" \
+      --vcf "${annotated_vcf}" \
       --input_fasta "${ref_fasta}" \
       --gene_annotations_gtf "${ref_gtf}" \
       --include_consequences missense_variant,frameshift_variant,inframe_insertion,inframe_deletion \
