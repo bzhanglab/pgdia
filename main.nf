@@ -232,7 +232,9 @@ workflow PGDIA {
         def vcf_list_ch = ch_annotated_vcf.collect()
 
         def ch_vcf_for_var = vcf_list_ch
-          .map { meta, vcf -> tuple(meta, vcf) }
+          .flatMap { it }                              // emit each element of the ArrayBag
+          .map { meta, vcf -> tuple(meta, vcf) }       // now destructuring works
+
         def vcf_done = vcf_list_ch.map { true }
 
         GENERATE_VARIANT_DB(ch_vcf_for_var)
