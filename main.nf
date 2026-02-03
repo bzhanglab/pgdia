@@ -229,8 +229,6 @@ workflow PGDIA {
         def ch_markdup_bams = rnavar_run.markdup_bams
         def ch_annotated_vcf = rnavar_run.annotated_vcf
 
-        ch_annotated_vcf.view { "ANNOTATED_VCF_RAW = $it ; class=${it.getClass()}" }
-
         def ch_vcf_for_var = ch_annotated_vcf.map { item ->
             tuple(item[0], item[1])
         }
@@ -263,10 +261,15 @@ workflow PGDIA {
             .concat(isoform_fasta)
             .filter { it != null }
          
+        variant_fasta.view { "VARIANT_FASTA = $it ; class=${it.getClass()}" }
+        isoform_fasta.view  { "ISOFORM_FASTA = $it ; class=${it.getClass()}" }
+        vcf_done.view       { "VCF_DONE = $it ; class=${it.getClass()}" }
+        isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
+
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
-            .combine(isoform_fasta_gated, by: 0)
+            .join(isoform_fasta_gated, by: 0, failOnMismatch: true)
             .map { id, var_fa, novel_fa ->
                 tuple(id, var_fa, novel_fa)
             }
