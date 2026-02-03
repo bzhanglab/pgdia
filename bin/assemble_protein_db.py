@@ -7,7 +7,7 @@ import sys
 # fasta_file_3 = "../rna-seq-results/stringtie/s_74YA27_novel_transcripts.fasta.transdecoder.pep"
 
 # fasta_file_1 = "../rna-seq-results/combined_protein_db/GENCODE.V42.basic.CHR.combined_contaminants.fa"
-fasta_file_1 = "./rna-seq-results/combined_protein_db/GENCODE.V42.basic.CHR_uniprot_like.fa"
+fasta_file_1 = sys.argv[5]  # reference protein DB: GENCODE.V42.basic.CHR.combined_contaminants.fa 
 fasta_file_2 = sys.argv[1]  # Variant DB
 fasta_file_3 = sys.argv[2]  # novel isoforms DB
 combined_fasta_path = sys.argv[3]  # combined DB

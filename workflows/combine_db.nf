@@ -8,6 +8,7 @@ process COMBINE_PROTEIN_DBS {
 
     input:
         tuple val(sample_id), path(var_modified_peptides), path(novel_pep)
+        path protein_reference_db
 
     output:
     tuple val(sample_id), path("${sample_id}_combined_protein_db.fa"), emit: combined_db
@@ -19,6 +20,7 @@ process COMBINE_PROTEIN_DBS {
         "${var_modified_peptides}" \
         "${novel_pep}" \
         "${sample_id}_combined_protein_db.fa" \
-        "${sample_id}_novel_protein_db.fa"
+        "${sample_id}_novel_protein_db.fa" \
+        "${protein_reference_db}"
     """
 }

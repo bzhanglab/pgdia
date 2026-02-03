@@ -261,8 +261,12 @@ workflow PGDIA {
             .map { id, var_fa, novel_fa ->
                 tuple(id, var_fa, novel_fa)
             }
+        
+        def ch_protein_ref = Channel.value(
+          file(params.protein_reference_db, checkIfExists: true)
+        )
 
-        COMBINE_PROTEIN_DBS(combine_in_ch)
+        COMBINE_PROTEIN_DBS(combine_in_ch, ch_protein_ref)
 
     emit:
         combined_db_ch = COMBINE_PROTEIN_DBS.out.combined_db
