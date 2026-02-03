@@ -6,7 +6,11 @@ workflow GENERATE_VARIANT_DB {
     main:
     def ref_fasta = params.fasta ?: (params.genomes && params.genome && params.genomes.containsKey(params.genome) ? params.genomes[params.genome].fasta : null)
     def ref_gtf   = params.gtf   ?: (params.genomes && params.genome && params.genomes.containsKey(params.genome) ? params.genomes[params.genome].gtf   : null)
-
+    
+    def ch_protein_ref = Channel.value(
+          file(params.protein_reference_db, checkIfExists: true)
+        )
+    
     if (!ref_fasta) {
         error("Missing required reference fasta: set --fasta or provide a genome entry with a fasta path.")
     }
@@ -18,7 +22,7 @@ workflow GENERATE_VARIANT_DB {
     var_peptides_ch = gen_var_db(annotated_vcf, ref_fasta, ref_gtf)
 
     // 2) add AA-change annotation / modify peptides
-    mod_peptides_ch = mod_var_peptides(var_peptides_ch)
+    mod_peptides_ch = mod_var_peptides(var_peptides_ch, ch_protein_ref)
 
     emit:
     variant_db = mod_peptides_ch
@@ -67,6 +71,7 @@ process mod_var_peptides {
 
   input:
     tuple val(meta), path(annotated_vcf), path(var_peptides)
+    path protein_reference_db
 
   output:
     tuple val(meta), path("${meta.id}_var_modified_peptides.fa")
@@ -86,7 +91,7 @@ process mod_var_peptides {
     python3 ${projectDir}/bin/get_var_aa_change.py \
       "${annotated_vcf}" \
       "${var_peptides}" \
-      "${params.protein_reference_db}"
+      "${protein_reference_db}"
       "${meta.id}_var_modified_peptides.fa"
     """
 }

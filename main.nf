@@ -230,9 +230,9 @@ workflow PGDIA {
         def ch_markdup_bams = rnavar_run.markdup_bams
         def vcf_done = ch_annotated_vcf.collect()
 
-        GENERATE_VARIANT_DB(
-            ch_annotated_vcf
-        )
+        GENERATE_VARIANT_DB(ch_annotated_vcf)
+
+
 
         variant_fasta = GENERATE_VARIANT_DB.out.variant_db
             .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
