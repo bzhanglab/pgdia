@@ -1,3 +1,5 @@
+include { GFFREAD } from '../modules/nf-core/gffread/main' 
+
 workflow GENERATE_VARIANT_DB {
     
     take:
@@ -18,8 +20,20 @@ workflow GENERATE_VARIANT_DB {
         error("Missing required reference GTF: set --gtf or provide a genome entry with a gtf path.")
     }
 
+    def ch_ref_fasta = Channel.value( file(ref_fasta, checkIfExists:true) )
+    def ch_ref_gtf   = Channel.value( file(ref_gtf,   checkIfExists:true) )
+
+    gffread_in_ch = Channel.value( tuple([id: 'ref'], ch_ref_gtf) )
+
+    GFFREAD(
+      gffread_in_ch,
+      ch_ref_fasta)
+    
+    def ch_input_fa = GFFREAD.out.gffread_fasta
+      .map { _meta, fa -> fa }
+
     // 1) generate variant peptide fasta
-    var_peptides_ch = GENERATE_VAR_PEPTIDES(annotated_vcf, ref_fasta, ref_gtf)
+    var_peptides_ch = GENERATE_VAR_PEPTIDES(annotated_vcf, ch_input_fa, ref_gtf)
 
     // 2) add AA-change annotation / modify peptides
     mod_peptides_ch = ANNOTATE_VAR_PEPTIDES(var_peptides_ch, ch_protein_ref)
@@ -38,7 +52,7 @@ process GENERATE_VAR_PEPTIDES {
 
   input:
     tuple val(meta), path(annotated_vcf)
-    path ref_fasta
+    path ref_fasta // transcript_fasta
     path ref_gtf
 
   output:
