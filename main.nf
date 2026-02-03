@@ -231,7 +231,9 @@ workflow PGDIA {
 
         def vcf_list_ch = ch_annotated_vcf.collect()
 
-        def ch_vcf_for_var = vcf_list_ch.flatten()
+        def ch_vcf_for_var = vcf_list_ch
+          .flatten()
+          .map { meta, vcf -> tuple(meta, vcf) }
         def vcf_done = vcf_list_ch.map { true }
 
         GENERATE_VARIANT_DB(ch_vcf_for_var)
