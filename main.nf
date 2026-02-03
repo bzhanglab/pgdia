@@ -226,13 +226,16 @@ workflow PGDIA {
             align
         )
 
-        def ch_annotated_vcf = rnavar_run.annotated_vcf
         def ch_markdup_bams = rnavar_run.markdup_bams
-        def vcf_done = ch_annotated_vcf.collect()
 
-        GENERATE_VARIANT_DB(ch_annotated_vcf)
+        def ch_vcf_for_var
+        def ch_vcf_for_gate
 
+        rnavar_run.annotated_vcf.into { ch_vcf_for_var; ch_vcf_for_gate }
 
+        def vcf_done = ch_vcf_for_gate.collect()
+
+        GENERATE_VARIANT_DB(ch_vcf_for_var)
 
         variant_fasta = GENERATE_VARIANT_DB.out.variant_db
             .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
