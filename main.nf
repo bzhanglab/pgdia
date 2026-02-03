@@ -229,24 +229,12 @@ workflow PGDIA {
         def ch_markdup_bams = rnavar_run.markdup_bams
         def ch_annotated_vcf = rnavar_run.annotated_vcf
 
-        // ---- fan out annotated_vcf into two channels (works on old Nextflow) ----
-        def ch_vcf_for_var  = Channel.create()
-        def ch_vcf_for_gate = Channel.create()
+        def vcf_list_ch = ch_annotated_vcf.collect()
 
-        ch_annotated_vcf.subscribe(
-            onNext: { item ->
-                ch_vcf_for_var.emit(item)
-                ch_vcf_for_gate.emit(item)
-            },
-            onComplete: {
-                ch_vcf_for_var.close()
-                ch_vcf_for_gate.close()
-            }
-        )
+        def ch_vcf_for_var = vcf_list_ch.flatten()
+        def vcf_done = vcf_list_ch.map { true }
 
-        def vcf_done = ch_vcf_for_gate.collect()
-
-        GENERATE_VARIANT_DB(ch_vcf_for_gate)
+        GENERATE_VARIANT_DB(ch_vcf_for_var)
 
         variant_fasta = GENERATE_VARIANT_DB.out.variant_db
             .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
