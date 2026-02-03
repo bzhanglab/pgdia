@@ -86,6 +86,7 @@ process mod_var_peptides {
     python3 ${projectDir}/bin/get_var_aa_change.py \
       "${annotated_vcf}" \
       "${var_peptides}" \
+      "${params.protein_reference_db}"
       "${meta.id}_var_modified_peptides.fa"
     """
 }

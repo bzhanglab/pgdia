@@ -121,7 +121,8 @@ with open(vcf_file_path, 'r') as file:
 
 # translated_fasta_path = "../rna-seq-results/annotation/s_74YA27_var_peptides.fa"
 translated_fasta_path = sys.argv[2]
-reference_fasta_path = "./rna-seq-results/combined_protein_db/GENCODE.V42.basic.CHR.combined_contaminants.fa"
+reference_fasta_path = sys.argv[3]
+## "./rna-seq-results/combined_protein_db/GENCODE.V42.basic.CHR.combined_contaminants.fa"
 reference_records = SeqIO.parse(reference_fasta_path, "fasta")
 reference_proteins = {}
 
@@ -181,7 +182,7 @@ with open(translated_fasta_path, "r") as fasta_file:
 
 # Write the modified protein sequences to a new FASTA file
 # modified_fasta_path = "../rna-seq-results/annotation/s_74YA27_var_modified_peptides.fa"
-modified_fasta_path = sys.argv[3]
+modified_fasta_path = sys.argv[4]
 with open(modified_fasta_path, "w") as output_handle:
     SeqIO.write(modified_protein_records, output_handle, "fasta")
 
