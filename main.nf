@@ -227,7 +227,7 @@ workflow PGDIA {
         )
 
         def ch_markdup_bams = rnavar_run.markdup_bams
-        def ch_annotated_vcf = rnavar_run.out.annotated_vcf.broadcast()
+        def ch_annotated_vcf = rnavar_run.annotated_vcf.broadcast()
 
         def vcf_done = ch_annotated_vcf.collect()
 
