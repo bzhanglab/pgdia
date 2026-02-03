@@ -387,12 +387,12 @@ workflow RNAVAR_MINI {
             //
             if((!params.skip_variantannotation) && (params.tools) && (params.tools.contains('merge') || params.tools.contains('snpeff') || params.tools.contains('vep'))) {
 
-                final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> tuple(meta, vcf)})
+                final_vcf = final_vcf.mix(parsed_input.vcf.map{meta, vcf, tbi -> [meta, vcf]})
                 def vep_fasta = fasta.map { meta, fa -> [ meta, vep_include_fasta ? fa : [] ] }
 
 
                 VCF_ANNOTATE_ALL(
-                    final_vcf.map{meta, vcf -> tuple(meta + [ file_name: vcf.baseName ], vcf ) },
+                    final_vcf.map{meta, vcf -> [meta + [ file_name: vcf.baseName ], vcf ] },
                     vep_fasta,
                     params.tools,
                     snpeff_db,
