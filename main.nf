@@ -229,6 +229,8 @@ workflow PGDIA {
         def ch_markdup_bams = rnavar_run.markdup_bams
         def ch_annotated_vcf = rnavar_run.annotated_vcf
 
+        ch_annotated_vcf.view { "ANNOTATED_VCF_RAW = $it ; class=${it.getClass()}" }
+
         def vcf_list_ch = ch_annotated_vcf.collect()
 
         def ch_vcf_for_var = vcf_list_ch
@@ -236,6 +238,10 @@ workflow PGDIA {
           .map { meta, vcf -> tuple(meta, vcf) }       // now destructuring works
 
         def vcf_done = vcf_list_ch.map { true }
+
+        vcf_list_ch.view { "vcf_list_ch item class=${it.getClass()} size=${it.size()}" }
+        ch_vcf_for_var.view { "ch_vcf_for_var item=$it" }
+
 
         GENERATE_VARIANT_DB(ch_vcf_for_var)
 
