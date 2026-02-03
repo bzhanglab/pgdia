@@ -231,17 +231,13 @@ workflow PGDIA {
 
         ch_annotated_vcf.view { "ANNOTATED_VCF_RAW = $it ; class=${it.getClass()}" }
 
-        def vcf_list_ch = ch_annotated_vcf.collect()
+        def ch_vcf_for_var = ch_annotated_vcf.map { item ->
+            tuple(item[0], item[1])
+        }
 
-        def ch_vcf_for_var = vcf_list_ch
-          .map { bag ->
-              bag.collect { pair -> tuple(pair[0], pair[1]) }
-          }
-          .flatMap { it }
+        // If you need a single "done" signal after all annotated VCFs exist:
+        def vcf_done = ch_annotated_vcf.map { true }.collect()
 
-        def vcf_done = vcf_list_ch.map { true }
-
-        vcf_list_ch.view { "vcf_list_ch item class=${it.getClass()} size=${it.size()}" }
         ch_vcf_for_var.view { "ch_vcf_for_var item=$it" }
 
 
