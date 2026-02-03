@@ -442,8 +442,6 @@ workflow RNAVAR_MINI {
     //
     // Collate and save software ch_versions
 
-    ch_versions.view { "VERS_ITEM=${it}  class=${it.getClass()}" }
-
     def collated_versions = softwareVersionsToYAML(ch_versions).collectFile(storeDir: "${params.outdir}/pipeline_info", name: 'nf_core_pipeline_software_mqc_versions.yml', sort: true, newLine: true)
     
     //
