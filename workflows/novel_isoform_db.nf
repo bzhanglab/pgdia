@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
  include { GFFREAD } from '../modules/nf-core/gffread/main' 
 
 
-process filter_isoforms {
+process FILTER_ISOFORMS {
   tag "${id}"
   input:
     tuple val(id), path(tmap), path(stringtie_gtf)
@@ -17,7 +17,7 @@ process filter_isoforms {
     """
 }
 
-process extract_ids {
+process EXTRACT_IDS {
   tag "${id}"
   input:
     tuple val(id), path(filtered_ids), path(stringtie_gtf)
@@ -30,7 +30,7 @@ process extract_ids {
     """
 }
 
-process get_novel_transcripts {
+process GET_NOVEL_TRANSCRIPT {
   tag "${id}"
 
   conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
@@ -51,7 +51,7 @@ process get_novel_transcripts {
     """
 }
 
-process filter_gtf_by_fai {
+process FILTER_GTF_BY_FAI {
   tag "${id}"
   input:
     tuple val(id), path(novel_gtf)
@@ -67,7 +67,7 @@ process filter_gtf_by_fai {
 
 
 
-process transdecoder_longorfs_predict {
+process TRANSDECODER_LONGORFS_PREDICT {
   tag "${id}"
 
   input:
@@ -133,18 +133,18 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
       .map { id, tmap, gtf -> tuple(id, tmap, gtf) }
 
     // 3) Filter .tmap file for novel isoforms
-    def filtered_ids_ch = filter_isoforms(tmap_and_gtf_ch)
+    def filtered_ids_ch = FILTER_ISOFORMS(tmap_and_gtf_ch)
 
     // 4) transcript ids list
-    def ids_list_ch = extract_ids(filtered_ids_ch)
+    def ids_list_ch = EXTRACT_IDS(filtered_ids_ch)
 
     // 5) extract novel isoforms gtf
-    def novel_gtf_ch = get_novel_transcripts(ids_list_ch)
+    def novel_gtf_ch = GET_NOVEL_TRANSCRIPT(ids_list_ch)
     // novel_gtf_ch: tuple( id, path("${id}_novel_isoforms.gtf") )
 
     // 6) filter out records on contigs absent from the genome fasta
     def ch_fai = Channel.value(file(fai_path, checkIfExists: true))
-    def filtered_novel_gtf_ch = filter_gtf_by_fai(novel_gtf_ch, ch_fai)
+    def filtered_novel_gtf_ch = FILTER_GTF_BY_FAI(novel_gtf_ch, ch_fai)
 
     // 7) gffread to fasta (kept consistent with earlier wiring)
     gffread_in_ch = filtered_novel_gtf_ch.map { id, novel_gtf ->
@@ -160,7 +160,7 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
     novel_fasta_by_id_ch = novel_fasta_ch.map { meta, fa -> tuple(meta.id, fa) }
 
     // 9) TransDecoder.LongOrfs TransDecoder.Predict
-    predict_pep_ch =  transdecoder_longorfs_predict(novel_fasta_by_id_ch)
+    predict_pep_ch =  TRANSDECODER_LONGORFS_PREDICT(novel_fasta_by_id_ch)
 
   emit:
     isoform_db = predict_pep_ch

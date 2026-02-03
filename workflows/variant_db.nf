@@ -19,17 +19,17 @@ workflow GENERATE_VARIANT_DB {
     }
 
     // 1) generate variant peptide fasta
-    var_peptides_ch = gen_var_db(annotated_vcf, ref_fasta, ref_gtf)
+    var_peptides_ch = GENERATE_VAR_PEPTIDES(annotated_vcf, ref_fasta, ref_gtf)
 
     // 2) add AA-change annotation / modify peptides
-    mod_peptides_ch = mod_var_peptides(var_peptides_ch, ch_protein_ref)
+    mod_peptides_ch = ANNOTATE_VAR_PEPTIDES(var_peptides_ch, ch_protein_ref)
 
     emit:
     variant_db = mod_peptides_ch
 }
 
 
-process gen_var_db {
+process GENERATE_VAR_PEPTIDES {
   tag "${meta.id}"
   container 'python:3.11-slim'
   container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -60,7 +60,7 @@ process gen_var_db {
 }
 
  
-process mod_var_peptides {
+process ANNOTATE_VAR_PEPTIDES {
   tag "${meta.id}"
   
   conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
