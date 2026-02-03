@@ -21,9 +21,8 @@ workflow GENERATE_VARIANT_DB {
     }
 
     def ch_ref_fasta = Channel.value( file(ref_fasta, checkIfExists:true) )
-    def ch_ref_gtf   = Channel.value( file(ref_gtf,   checkIfExists:true) )
 
-    gffread_in_ch = Channel.value( tuple([id: 'ref'], ch_ref_gtf) )
+    gffread_in_ch = Channel.value( tuple([id: 'ref'], file(ref_gtf, checkIfExists: true)) )
 
     GFFREAD(
       gffread_in_ch,
