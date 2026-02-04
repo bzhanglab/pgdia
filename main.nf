@@ -256,13 +256,15 @@ workflow PGDIA {
             RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
         )
         isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
+
+        variant_fasta.view { "VARIANT_FASTA = $it ; class=${it.getClass()}" }
+        GENERATE_NOVEL_ISOFORM_DB.out.isoform_db.view { "ISOFORM_RAW=$it" }
+
         def isoform_fasta_gated = vcf_done
             .map { null }
             .concat(isoform_fasta)
             .filter { it != null }
          
-        variant_fasta.view { "VARIANT_FASTA = $it ; class=${it.getClass()}" }
-        isoform_fasta.view  { "ISOFORM_FASTA = $it ; class=${it.getClass()}" }
         vcf_done.view       { "VCF_DONE = $it ; class=${it.getClass()}" }
         isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
 
