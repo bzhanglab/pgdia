@@ -273,7 +273,7 @@ workflow PGDIA {
 
       def combined_db_ch = dbs.combined_db
 
-      def diann_out_ch = DIANN_PIPELINE(combined_db_ch).out.diann_out
+      def diann_out_ch = DIANN_PIPELINE(combined_db_ch).diann_out
 
 
     emit:
