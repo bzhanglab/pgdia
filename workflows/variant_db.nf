@@ -44,7 +44,6 @@ workflow GENERATE_VARIANT_DB {
 
 process GENERATE_VAR_PEPTIDES {
   tag "${meta.id}"
-  container 'python:3.11-slim'
   container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
       'https://depot.galaxyproject.org/singularity/pypgatk:0.0.24--pyhdfd78af_0' :
       'quay.io/biocontainers/pypgatk:0.0.24--pyhdfd78af_0' }"
