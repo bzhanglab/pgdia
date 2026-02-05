@@ -254,11 +254,7 @@ workflow PGDIA {
         )
         isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
 
-        def isoform_fasta_gated = vcf_done
-            .map { null }
-            .concat(isoform_fasta)
-            .filter { it != null }
-
+        def isoform_fasta_gated = isoform_fasta.after(vcf_done)
         
         vcf_done.view { "VCF_DONE=$it ; class=${it.getClass()}" }
         isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
