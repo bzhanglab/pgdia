@@ -236,9 +236,6 @@ workflow PGDIA {
         // If you need a single "done" signal after all annotated VCFs exist:
         def vcf_done = ch_annotated_vcf.map { true }.collect()
 
-        ch_vcf_for_var.view { "ch_vcf_for_var item=$it" }
-
-
         GENERATE_VARIANT_DB(ch_vcf_for_var)
 
         variant_fasta = GENERATE_VARIANT_DB.out.variant_db
@@ -265,7 +262,6 @@ workflow PGDIA {
             .concat(isoform_fasta)
             .filter { it != null }
          
-        vcf_done.view       { "VCF_DONE = $it ; class=${it.getClass()}" }
         isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
 
 
