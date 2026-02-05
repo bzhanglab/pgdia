@@ -90,14 +90,14 @@ workflow PIPELINE_INITIALISATION {
     //
 
     def samplesheetList = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
-    def bool_align = samplesheetList.find { _meta, fastq_1, _fastq_2, _bam, _bai, _cram, _crai, _vcf, _tbi ->
+    def bool_align = samplesheetList.find { _meta, fastq_1, _fastq_2, _bam, _bai, _cram, _crai, _vcf, _tbi, _dia_raw ->
         fastq_1
     } ? true : false
 
     ch_samplesheet = Channel.fromList(samplesheetList)
-        .map{ meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi ->
+        .map{ meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw ->
             def new_meta = meta + [ single_end: !fastq_2 ]
-            tuple(meta.id, new_meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi)
+            tuple(meta.id, new_meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw)
         }
 
     emit:
