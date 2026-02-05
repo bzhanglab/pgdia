@@ -185,7 +185,7 @@ def validateInputSamplesheet(input) {
 // Function to check samples are internally consistent after being grouped
 //
 def checkSamplesAfterGrouping(input) {
-    def (_ids, metas, fastqs_1, fastqs_2, bams, bais, crams, crais, vcfs, tbis) = input
+    def (_ids, metas, fastqs_1, fastqs_2, bams, bais, crams, crais, vcfs, tbis, dia_raws) = input
 
     def fastqs_1_list = fastqs_1.findAll { it -> it != [] }
     def fastqs_2_list = fastqs_2.findAll { it -> it != [] }
@@ -195,6 +195,8 @@ def checkSamplesAfterGrouping(input) {
     def crai_list = crais.findAll { it -> it != [] }
     def vcf_list = vcfs.findAll { it -> it != [] }
     def tbi_list = tbis.findAll { it -> it != [] }
+    def dia_raw_list  = dia_raws.findAll { it -> it != [] }
+
 
     def alignment_file_list = bam_list + cram_list
     if(alignment_file_list.size() > 1) {
@@ -206,13 +208,17 @@ def checkSamplesAfterGrouping(input) {
         error("Please check input samplesheet -> Detected FASTQ and BAM/CRAM files for the same sample. Please provide only one file type per sample: ${metas[0].id}")
     }
 
+    if (dia_raw_list.size() > 1) {
+        error("Please check input samplesheet -> Multiple DIA raw files per sample are not supported: ${metas[0].id}")
+    }
+
     // Check that multiple runs of the same sample are of the same datatype i.e. single-end / paired-end
     def endedness_ok = metas.collect{ it.single_end }.unique().size == 1
     if (!endedness_ok) {
         error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
     }
 
-    return [ metas[0], fastqs, bam_list[0] ?: [], bai_list[0] ?: [], cram_list[0] ?: [], crai_list[0] ?: [], vcf_list[0] ?: [], tbi_list[0] ?: [] ]
+    return [ metas[0], fastqs, bam_list[0] ?: [], bai_list[0] ?: [], cram_list[0] ?: [], crai_list[0] ?: [], vcf_list[0] ?: [], tbi_list[0] ?: [], dia_raw_list ? dia_raw_list[0] : []]
 }
 
 //

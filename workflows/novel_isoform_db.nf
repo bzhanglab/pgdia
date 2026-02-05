@@ -5,11 +5,11 @@ nextflow.enable.dsl=2
 
 
 process FILTER_ISOFORMS {
-  tag "${id}"
+  tag "${meta.id}"
   input:
-    tuple val(id), path(tmap), path(stringtie_gtf)
+    tuple val(meta), path(tmap), path(stringtie_gtf)
   output:
-    tuple val(id), path('filtered_novel_isoforms_ids.txt'), path(stringtie_gtf)
+    tuple val(meta), path('filtered_novel_isoforms_ids.txt'), path(stringtie_gtf)
   script:
     """
     set -euo pipefail
@@ -18,11 +18,11 @@ process FILTER_ISOFORMS {
 }
 
 process EXTRACT_IDS {
-  tag "${id}"
+  tag "${meta.id}"
   input:
-    tuple val(id), path(filtered_ids), path(stringtie_gtf)
+    tuple val(meta), path(filtered_ids), path(stringtie_gtf)
   output:
-    tuple val(id), path('ids_list.txt'), path(stringtie_gtf)
+    tuple val(meta), path('ids_list.txt'), path(stringtie_gtf)
   script:
     """
     set -euo pipefail
@@ -31,7 +31,7 @@ process EXTRACT_IDS {
 }
 
 process GET_NOVEL_TRANSCRIPT {
-  tag "${id}"
+  tag "${meta.id}"
 
   conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
   container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -40,40 +40,40 @@ process GET_NOVEL_TRANSCRIPT {
 
   
   input:
-    tuple val(id), path(ids_list), path(stringtie_gtf)
+    tuple val(meta), path(ids_list), path(stringtie_gtf)
   output:
-    tuple val(id), path("${id}_novel_isoforms.gtf")
+    tuple val(meta), path("${meta.id}_novel_isoforms.gtf")
   script:
     """
     set -euo pipefail
-    python3 ${projectDir}/bin/get_transcript.py "$ids_list" "$stringtie_gtf" "${id}_novel_isoforms.gtf"
+    python3 ${projectDir}/bin/get_transcript.py "$ids_list" "$stringtie_gtf" "${meta.id}_novel_isoforms.gtf"
     
     """
 }
 
 process FILTER_GTF_BY_FAI {
-  tag "${id}"
+  tag "${meta.id}"
   input:
-    tuple val(id), path(novel_gtf)
+    tuple val(meta), path(novel_gtf)
     path(fai)
   output:
-    tuple val(id), path("${id}_novel_isoforms.filtered.gtf")
+    tuple val(meta), path("${meta.id}_novel_isoforms.filtered.gtf")
   script:
     """
     set -euo pipefail
-    awk 'BEGIN{FS="\\t"} FNR==NR{contigs[\$1]=1; next} /^#/ || contigs[\$1] { print }' "$fai" "$novel_gtf" > "${id}_novel_isoforms.filtered.gtf"
+    awk 'BEGIN{FS="\\t"} FNR==NR{contigs[\$1]=1; next} /^#/ || contigs[\$1] { print }' "$fai" "$novel_gtf" > "${meta.id}_novel_isoforms.filtered.gtf"
     """
 }
 
 
 
 process TRANSDECODER_LONGORFS_PREDICT {
-  tag "${id}"
+  tag "${meta.id}"
 
   input:
-    tuple val(id), path(fasta)
+    tuple val(meta), path(fasta)
   output:
-    tuple val(id), path("${id}.pep.fasta"), emit: pep_fasta
+    tuple val(meta), path("${meta.id}.pep.fasta"), emit: pep_fasta
 
   script:
     """
@@ -88,9 +88,9 @@ process TRANSDECODER_LONGORFS_PREDICT {
 
     # Copy output to a stable name
     pep=\$(ls -1 *.transdecoder.pep | head -n 1)
-    cp "\$pep" "${id}.pep.fasta"
+    cp "\$pep" "${meta.id}.pep.fasta"
 
-    # Remove intermediate TransDecoder outputs (keeps only ${id}.pep.fasta as declared output)
+    # Remove intermediate TransDecoder outputs (keeps only ${meta.id}.pep.fasta as declared output)
     rm -rf ./*.transdecoder_dir ./*.transdecoder*
 
     """
@@ -128,9 +128,9 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
     def tmap_ch = GFFCOMPARE.out.tmap
 
     tmap_and_gtf_ch = tmap_ch
-      .map { meta, tmap -> tuple(meta.id, tmap) }
-      .join( annotated_gtf.map { meta, gtf -> tuple(meta.id, gtf) }, by: 0, failOnMismatch: true )
-      .map { id, tmap, gtf -> tuple(id, tmap, gtf) }
+      .map { meta, tmap -> tuple(meta, tmap) }
+      .join( annotated_gtf.map { meta, gtf -> tuple(meta, gtf) }, by: 0, failOnMismatch: true )
+      .map { meta, tmap, gtf -> tuple(meta, tmap, gtf) }
 
     // 3) Filter .tmap file for novel isoforms
     def filtered_ids_ch = FILTER_ISOFORMS(tmap_and_gtf_ch)
@@ -147,8 +147,8 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
     def filtered_novel_gtf_ch = FILTER_GTF_BY_FAI(novel_gtf_ch, ch_fai)
 
     // 7) gffread to fasta (kept consistent with earlier wiring)
-    gffread_in_ch = filtered_novel_gtf_ch.map { id, novel_gtf ->
-      tuple([id: id], novel_gtf)
+    gffread_in_ch = filtered_novel_gtf_ch.map { meta, novel_gtf ->
+      tuple(meta, novel_gtf)
     }
 
     GFFREAD(
@@ -157,7 +157,7 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
     )
 
     novel_fasta_ch = GFFREAD.out.gffread_fasta
-    novel_fasta_by_id_ch = novel_fasta_ch.map { meta, fa -> tuple(meta.id, fa) }
+    novel_fasta_by_id_ch = novel_fasta_ch.map { meta, fa -> tuple(meta, fa) }
 
     // 9) TransDecoder.LongOrfs TransDecoder.Predict
     def predict_pep_ch =  TRANSDECODER_LONGORFS_PREDICT(novel_fasta_by_id_ch).pep_fasta

@@ -34,6 +34,7 @@ include { RUN_STRINGTIE } from './workflows/stringtie/stringtie'
 include { GENERATE_VARIANT_DB         } from './workflows/variant_db'
 include { GENERATE_NOVEL_ISOFORM_DB   } from './workflows/novel_isoform_db'
 include { COMBINE_PROTEIN_DBS         } from './workflows/combine_db'
+include { DIANN_PIPELINE              } from './workflows/diann_pipeline'
 
 
 
@@ -236,7 +237,7 @@ workflow PGDIA {
         GENERATE_VARIANT_DB(ch_vcf_for_var)
 
         variant_fasta = GENERATE_VARIANT_DB.out.variant_db
-            .map { meta, fa -> tuple(meta.id, fa) }                // tuple(id, var_modified_peptides.fa)
+            .map { meta, fa -> tuple(meta, fa) }                // tuple(val(meta), var_modified_peptides.fa)
         
 
         // 2. StringTie on markdup BAMs from RNAVAR
@@ -260,8 +261,8 @@ workflow PGDIA {
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
             .join(isoform_fasta, by: 0, failOnMismatch: true)
-            .map { id, var_fa, novel_fa ->
-                tuple(id, var_fa, novel_fa)
+            .map { meta, var_fa, novel_fa ->
+                tuple(meta, var_fa, novel_fa)
             }
         
         def ch_protein_ref = Channel.value(
@@ -270,9 +271,13 @@ workflow PGDIA {
 
         def dbs = COMBINE_PROTEIN_DBS(combine_in_ch, ch_protein_ref)
 
+        def combined_db_ch = dbs.combined_db
+
+        def diann_out_ch = DIANN_PIPELINE(combined_db_ch).out.diann_out
+
+
     emit:
-        combined_db_ch = dbs.combined_db
-        novel_db_ch    = dbs.novel_db
+      diann_report = diann_out_ch
 }
 
 workflow {

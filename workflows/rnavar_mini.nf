@@ -88,17 +88,20 @@ workflow RNAVAR_MINI {
     parsed_input = input
         .groupTuple()
         .map { samplesheet -> checkSamplesAfterGrouping(samplesheet) }
-        .branch { meta, fq, bam, bai, cram, crai, vcf, tbi ->
+        .branch { meta, fq, bam, bai, cram, crai, vcf, tbi, dia_raw ->
+            // inject dia_raw into meta 
+            def meta2 = meta + [ dia_raw: dia_raw ]
+
             single   : fq && fq.size() == 1
-            return [meta, fq.flatten()]
+            return [meta2, fq.flatten()]
             multiple : fq && fq.size() > 1
-            return [meta, fq.flatten()]
+            return [meta2, fq.flatten()]
             bam      : bam
-            return [meta, bam, bai]
+            return [meta2, bam, bai]
             cram     : cram
-            return [meta, cram, crai]
+            return [meta2, cram, crai]
             vcf      : vcf
-            return [meta, vcf, tbi]
+            return [meta2, vcf, tbi]
     }
 
     // MODULE: Prepare the alignment files (index BAM/CRAM files that are missing an index)
