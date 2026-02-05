@@ -221,59 +221,59 @@ workflow PGDIA {
 
     main:
 
-        // 1. Run nf-core/rnavar
-        def rnavar_run = NFCORE_RNAVAR(
-            samplesheet,
-            align
-        )
+      // 1. Run nf-core/rnavar
+      def rnavar_run = NFCORE_RNAVAR(
+          samplesheet,
+          align
+      )
 
-        def ch_markdup_bams = rnavar_run.markdup_bams
-        def ch_annotated_vcf = rnavar_run.annotated_vcf
+      def ch_markdup_bams = rnavar_run.markdup_bams
+      def ch_annotated_vcf = rnavar_run.annotated_vcf
 
-        def ch_vcf_for_var = ch_annotated_vcf.map { item ->
-            tuple(item[0], item[1])
-        }
+      def ch_vcf_for_var = ch_annotated_vcf.map { item ->
+          tuple(item[0], item[1])
+      }
 
-        GENERATE_VARIANT_DB(ch_vcf_for_var)
+      GENERATE_VARIANT_DB(ch_vcf_for_var)
 
-        variant_fasta = GENERATE_VARIANT_DB.out.variant_db
-            .map { meta, fa -> tuple(meta, fa) }                // tuple(val(meta), var_modified_peptides.fa)
-        
+      variant_fasta = GENERATE_VARIANT_DB.out.variant_db
+          .map { meta, fa -> tuple(meta, fa) }                // tuple(val(meta), var_modified_peptides.fa)
+      
 
-        // 2. StringTie on markdup BAMs from RNAVAR
-        RUN_STRINGTIE(
-            ch_markdup_bams,
-            gene_annotation_gtf
-        )
+      // 2. StringTie on markdup BAMs from RNAVAR
+      RUN_STRINGTIE(
+          ch_markdup_bams,
+          gene_annotation_gtf
+      )
 
-        // 3. Generate novel isoform DBs from StringTie GTFs
-        GENERATE_NOVEL_ISOFORM_DB(
-            RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
-        )
-        isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
+      // 3. Generate novel isoform DBs from StringTie GTFs
+      GENERATE_NOVEL_ISOFORM_DB(
+          RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
+      )
+      isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
 
-        //def isoform_fasta_gated = isoform_fasta.after(vcf_done)
-        
-        //vcf_done.view { "VCF_DONE=$it ; class=${it.getClass()}" }
-        //isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
+      //def isoform_fasta_gated = isoform_fasta.after(vcf_done)
+      
+      //vcf_done.view { "VCF_DONE=$it ; class=${it.getClass()}" }
+      //isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
 
 
-        // Step 3: Combine protein DBs
-        combine_in_ch = variant_fasta
-            .join(isoform_fasta, by: 0, failOnMismatch: true)
-            .map { meta, var_fa, novel_fa ->
-                tuple(meta, var_fa, novel_fa)
-            }
-        
-        def ch_protein_ref = Channel.value(
-          file(params.protein_reference_db, checkIfExists: true)
-        )
+      // Step 3: Combine protein DBs
+      combine_in_ch = variant_fasta
+          .join(isoform_fasta, by: 0, failOnMismatch: true)
+          .map { meta, var_fa, novel_fa ->
+              tuple(meta, var_fa, novel_fa)
+          }
+      
+      def ch_protein_ref = Channel.value(
+        file(params.protein_reference_db, checkIfExists: true)
+      )
 
-        def dbs = COMBINE_PROTEIN_DBS(combine_in_ch, ch_protein_ref)
+      def dbs = COMBINE_PROTEIN_DBS(combine_in_ch, ch_protein_ref)
 
-        def combined_db_ch = dbs.combined_db
+      def combined_db_ch = dbs.combined_db
 
-        def diann_out_ch = DIANN_PIPELINE(combined_db_ch).out.diann_out
+      def diann_out_ch = DIANN_PIPELINE(combined_db_ch).out.diann_out
 
 
     emit:

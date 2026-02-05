@@ -68,13 +68,19 @@
                 "exists": true,
                 "pattern": "^\\S+\\.vcf\\.gz\\.tbi$",
                 "errorMessage": "TBI file should end with `.vcf.gz.tbi`, should not contains spaces and should exist."
+            },
+            "dia_raw": {
+                "type": "string",
+                "description": "Path to DIA-MS raw data file or directory (e.g. .d for timsTOF)",
+                "pattern": ".*",
+                "errorMessage": "DIA RAW file should end with `.d` or '.RAW', should not contains spaces and should exist."
             }
         },
         "oneOf": [
-            { "required": ["sample", "fastq_1"] },
-            { "required": ["sample", "cram"] },
-            { "required": ["sample", "vcf"] },
-            { "required": ["sample", "bam"] }
+            { "required": ["sample", "fastq_1", "dia_raw"] },
+            { "required": ["sample", "cram", "dia_raw"] },
+            { "required": ["sample", "vcf", "dia_raw"] },
+            { "required": ["sample", "bam", "dia_raw"] }
         ]
     }
 }
