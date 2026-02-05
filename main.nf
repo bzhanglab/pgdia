@@ -233,9 +233,6 @@ workflow PGDIA {
             tuple(item[0], item[1])
         }
 
-        // If you need a single "done" signal after all annotated VCFs exist:
-        def vcf_done = rnavar_run.annotated_vcf.map { true }.collect()
-
         GENERATE_VARIANT_DB(ch_vcf_for_var)
 
         variant_fasta = GENERATE_VARIANT_DB.out.variant_db
@@ -254,15 +251,15 @@ workflow PGDIA {
         )
         isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
 
-        def isoform_fasta_gated = isoform_fasta.after(vcf_done)
+        //def isoform_fasta_gated = isoform_fasta.after(vcf_done)
         
-        vcf_done.view { "VCF_DONE=$it ; class=${it.getClass()}" }
-        isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
+        //vcf_done.view { "VCF_DONE=$it ; class=${it.getClass()}" }
+        //isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
 
 
         // Step 3: Combine protein DBs
         combine_in_ch = variant_fasta
-            .join(isoform_fasta_gated, by: 0, failOnMismatch: true)
+            .join(isoform_fasta, by: 0, failOnMismatch: true)
             .map { id, var_fa, novel_fa ->
                 tuple(id, var_fa, novel_fa)
             }
