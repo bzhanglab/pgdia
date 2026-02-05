@@ -234,7 +234,7 @@ workflow PGDIA {
         }
 
         // If you need a single "done" signal after all annotated VCFs exist:
-        def vcf_done = ch_annotated_vcf.map { true }.collect()
+        def vcf_done = rnavar_run.annotated_vcf.map { true }.collect()
 
         GENERATE_VARIANT_DB(ch_vcf_for_var)
 
