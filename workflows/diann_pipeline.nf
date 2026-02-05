@@ -29,7 +29,7 @@ process RUN_DIANN {
     tuple val(meta), path(protein_db_fa)
 
   output:
-    tuple val(meta), path("${meta.id}_report.parquet"), emit: diann_report
+    tuple val(meta), path("${meta.id}_report.parquet")
           // path("${meta.id}_lib.parquet"),
           // path("${meta.id}_matrices.parquet")
 
@@ -74,13 +74,13 @@ process RUN_DIANN {
 
 workflow DIANN_PIPELINE {
   take:
-    // expected items: tuple(meta, path(raw_d), path(protein_db_fa))
+    // expected items: tuple(meta, path(protein_db_fa))
     // meta.id is sample id
     samples_ch
 
   main:
-    RUN_DIANN(samples_ch)
+    diann_out_ch = RUN_DIANN(samples_ch)
 
   emit:
-    diann_out = RUN_DIANN.out.diann_report
+    diann_out = diann_out_ch
 }
