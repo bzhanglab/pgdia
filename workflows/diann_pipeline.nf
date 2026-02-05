@@ -82,5 +82,5 @@ workflow DIANN_PIPELINE {
     RUN_DIANN(samples_ch)
 
   emit:
-    diann_out = RUN_DIANN.diann_report
+    diann_out = RUN_DIANN.out.diann_report
 }
