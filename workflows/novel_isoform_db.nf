@@ -160,7 +160,7 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
     novel_fasta_by_id_ch = novel_fasta_ch.map { meta, fa -> tuple(meta.id, fa) }
 
     // 9) TransDecoder.LongOrfs TransDecoder.Predict
-    def predict_pep_ch =  TRANSDECODER_LONGORFS_PREDICT(novel_fasta_by_id_ch).out.pep_fasta
+    def predict_pep_ch =  TRANSDECODER_LONGORFS_PREDICT(novel_fasta_by_id_ch).pep_fasta
 
   emit:
     isoform_db = predict_pep_ch

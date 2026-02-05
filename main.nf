@@ -276,11 +276,11 @@ workflow PGDIA {
           file(params.protein_reference_db, checkIfExists: true)
         )
 
-        COMBINE_PROTEIN_DBS(combine_in_ch, ch_protein_ref)
+        def dbs = COMBINE_PROTEIN_DBS(combine_in_ch, ch_protein_ref)
 
     emit:
-        combined_db_ch = COMBINE_PROTEIN_DBS.out.combined_db
-        novel_db_ch    = COMBINE_PROTEIN_DBS.out.novel_db
+        combined_db_ch = dbs.combined_db
+        novel_db_ch    = dbs.novel_db
 }
 
 workflow {
