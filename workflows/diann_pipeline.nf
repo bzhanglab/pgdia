@@ -53,12 +53,12 @@ process LOAD_DIANN_IMAGE {
           echo "ERROR: docker load succeeded but cannot find an image id to tag" >&2
           exit 1
         fi
-        docker tag "\$last_id" "${params.diann_tar_tag}"
+        docker tag "\$last_id" "${params.diann_tar_tag}" >/dev/null
       fi
 
-      echo "${params.diann_tar_tag}"
+      echo "${params.diann_tar_tag}" > diann_image_name.txt
     else
-      echo "\$img"
+      echo "\$img" > diann_image_name.txt
     fi
     """
   // read the image name from file
