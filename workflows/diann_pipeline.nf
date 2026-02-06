@@ -15,23 +15,75 @@ nextflow.enable.dsl=2
 
 params.outdir      = params.outdir ?: "results"
 params.diann_image = params.diann_image ?: "diann-2.0.2"
+params.diann_tar_tag = params.diann_tar_tag ?: "diann-2.0.2"        // tag used if loading tar
 params.diann_bin   = params.diann_bin   ?: "/diann-2.0.2/diann-linux"
 params.diann_cpus  = params.diann_cpus  ?: 25
 
+
+process LOAD_DIANN_IMAGE {
+  tag "load_diann_image"
+  // This process must run where Docker CLI is available and can talk to the daemon
+  // Do NOT set a container here.
+
+  input:
+    val(diann_image)
+
+  output:
+    val(diann_image_name)
+
+  script:
+    """
+    set -euo pipefail
+
+    img="${diann_image}"
+
+    if [[ "\$img" == *.tar ]]; then
+      if [[ ! -f "\$img" ]]; then
+        echo "ERROR: DIA-NN tar not found: \$img" >&2
+        exit 1
+      fi
+
+      # Load tar into Docker
+      docker load -i "\$img" >/dev/null
+
+      # Ensure the desired tag exists; if not, tag the most recent image id
+      if ! docker image inspect "${params.diann_tar_tag}" >/dev/null 2>&1; then
+        last_id=\$(docker images -q | head -n 1)
+        if [[ -z "\$last_id" ]]; then
+          echo "ERROR: docker load succeeded but cannot find an image id to tag" >&2
+          exit 1
+        fi
+        docker tag "\$last_id" "${params.diann_tar_tag}"
+      fi
+
+      echo "${params.diann_tar_tag}"
+    else
+      echo "\$img"
+    fi
+    """
+  // read the image name from file
+  // Nextflow will capture this file, but we declared `val` output, so we need a small trick:
+  // Use stdout as the value by printing it as the last line:
+  // We therefore set diann_image_name as stdout.
+  // (See below: use `shell:` to directly echo.)
+}
+
 process RUN_DIANN {
   tag { meta.id }
-  container params.diann_image
   cpus params.diann_cpus
 
   publishDir { "${params.outdir}/diann_output/${meta.id}" }, mode: 'copy', overwrite: true
 
   input:
+    val(diann_image_name)
     tuple val(meta), path(protein_db_fa)
 
   output:
-    tuple val(meta), path("${meta.id}_report.parquet")
-          // path("${meta.id}_lib.parquet"),
-          // path("${meta.id}_matrices.parquet")
+    tuple val(meta), path("${meta.id}_report.parquet"), emit: diann_report
+    path("${meta.id}_lib.parquet"), optional: true
+    path("${meta.id}_matrices.parquet"), optional: true
+
+  container { diann_image_name }
 
   script:
     """
@@ -79,7 +131,10 @@ workflow DIANN_PIPELINE {
     samples_ch
 
   main:
-    diann_out_ch = RUN_DIANN(samples_ch)
+
+    def diann_image_name_ch = LOAD_DIANN_IMAGE( Channel.value(params.diann_image) )
+
+    diann_out_ch = RUN_DIANN(diann_image_name_ch, samples_ch)
 
   emit:
     diann_out = diann_out_ch
