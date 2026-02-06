@@ -134,7 +134,7 @@ workflow DIANN_PIPELINE {
 
     def diann_image_name_ch = LOAD_DIANN_IMAGE( Channel.value(params.diann_image) )
 
-    diann_out_ch = RUN_DIANN(diann_image_name_ch, samples_ch)
+    diann_out_ch = RUN_DIANN(diann_image_name_ch, samples_ch).out.diann_report
 
   emit:
     diann_out = diann_out_ch
