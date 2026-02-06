@@ -258,9 +258,18 @@ workflow PGDIA {
       //isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
 
 
+      def isoform_norm = isoform_fasta.map { meta, pep ->
+        tuple(meta.subMap(['id','single_end','dia_raw']), pep)
+      }
+
+      def variant_norm = variant_fasta.map { meta, var_fa ->
+        tuple(meta.subMap(['id','single_end','dia_raw']), var_fa)
+      }
+
+
       // Step 3: Combine protein DBs
-      combine_in_ch = variant_fasta
-          .join(isoform_fasta, by: 0, failOnMismatch: true)
+      combine_in_ch = variant_norm
+          .join(isoform_norm, by: 0, failOnMismatch: true)
           .map { meta, var_fa, novel_fa ->
               tuple(meta, var_fa, novel_fa)
           }
