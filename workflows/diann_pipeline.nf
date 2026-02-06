@@ -29,7 +29,7 @@ process LOAD_DIANN_IMAGE {
     val(diann_image)
 
   output:
-    val(diann_image_name)
+    path("diann_image_name.txt")
 
   script:
     """
@@ -75,7 +75,7 @@ process RUN_DIANN {
   publishDir { "${params.outdir}/diann_output/${meta.id}" }, mode: 'copy', overwrite: true
 
   input:
-    val(diann_image_name)
+    path(diann_image_name_txt)
     tuple val(meta), path(protein_db_fa)
 
   output:
@@ -83,11 +83,11 @@ process RUN_DIANN {
     path("${meta.id}_lib.parquet"), optional: true
     path("${meta.id}_matrices.parquet"), optional: true
 
-  container { diann_image_name }
-
   script:
     """
     set -euo pipefail
+
+    diann_image_name="\$(cat "${diann_image_name_txt}" | tr -d '\\r\\n')"
 
     ${params.diann_bin} -v \\
       --f "${meta.dia_raw}" \\
@@ -122,6 +122,11 @@ process RUN_DIANN {
       --rt-profiling \\
       --report-decoys
     """
+
+  container {
+    // updated: container reads from the staged txt file
+    file(diann_image_name_txt).text.trim()
+  }
 }
 
 workflow DIANN_PIPELINE {
