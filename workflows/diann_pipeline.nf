@@ -76,7 +76,7 @@ process RUN_DIANN {
 
   input:
     val(diann_image_name)
-    tuple val(meta), path(protein_db_fa)
+    tuple val(meta), path(protein_db_fa), path(dia_raw)
 
   output:
     tuple val(meta), path("${meta.id}_report.parquet"), emit: diann_report
@@ -127,7 +127,7 @@ process RUN_DIANN {
 
 workflow DIANN_PIPELINE {
   take:
-    // expected items: tuple(meta, path(protein_db_fa))
+    // expected items: tuple(meta, path(protein_db_fa), path(dia_raw))
     // meta.id is sample id
     samples_ch
 

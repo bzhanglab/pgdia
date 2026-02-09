@@ -282,7 +282,15 @@ workflow PGDIA {
 
       def combined_db_ch = dbs.combined_db
 
-      def diann_out_ch = DIANN_PIPELINE(combined_db_ch).diann_out
+      def diann_input_ch = combined_db_ch.map { meta, protein_db ->
+          tuple(
+              meta,
+              protein_db,
+              file(meta.dia_raw)
+          )
+      }
+
+      def diann_out_ch = DIANN_PIPELINE(diann_input_ch).diann_out
 
 
     emit:
