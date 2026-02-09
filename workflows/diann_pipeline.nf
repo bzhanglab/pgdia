@@ -90,7 +90,7 @@ process RUN_DIANN {
     set -euo pipefail
 
     ${params.diann_bin} -v \\
-      --f "${meta.dia_raw}" \\
+      --f "${dia_raw}" \\
       --lib "" \\
       --threads ${task.cpus} \\
       --verbose 1 \\
