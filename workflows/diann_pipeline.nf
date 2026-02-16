@@ -17,7 +17,7 @@ params.outdir      = params.outdir ?: "results"
 params.diann_image = params.diann_image ?: "diann-2.0.2"
 params.diann_tar_tag = params.diann_tar_tag ?: "diann-2.0.2"        // tag used if loading tar
 params.diann_bin   = params.diann_bin   ?: "/diann-2.0.2/diann-linux"
-params.diann_cpus  = params.diann_cpus  ?: 25
+params.diann_cpus  = params.diann_cpus  ?: 22
 
 
 process LOAD_DIANN_IMAGE {
@@ -69,6 +69,7 @@ process LOAD_DIANN_IMAGE {
 }
 
 process RUN_DIANN {
+  label 'process_high_large_disk'
   tag { meta.id }
   cpus params.diann_cpus
 
@@ -95,7 +96,6 @@ process RUN_DIANN {
       --threads ${task.cpus} \\
       --verbose 1 \\
       --out "${meta.id}_report.parquet" \\
-      --out-lib "${meta.id}_lib.parquet" \\
       --qvalue 1 \\
       --matrices \\
       --out-matrices "${meta.id}_matrices.parquet" \\
