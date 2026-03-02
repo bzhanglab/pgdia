@@ -175,14 +175,14 @@ workflow DIANN_PIPELINE {
     def diann_image_name_ch = diann_name_file_ch.map { f -> f.text.trim() }
 
     def run_diann_input_ch = samples_ch
-      .map { meta, protein_db_fa, dia_raw, _, _ ->
+      .map { meta, protein_db_fa, dia_raw, novel_fasta_unused, isoform_annotation_unused ->
         tuple(meta, protein_db_fa, dia_raw)
       }
 
     def run_diann_out = RUN_DIANN(diann_image_name_ch, run_diann_input_ch)
     def diann_out_ch = run_diann_out.diann_report
     def postprocess_meta_ch = samples_ch
-      .map { meta, _, _, novel_fasta, isoform_annotation ->
+      .map { meta, protein_db_fa_unused, dia_raw_unused, novel_fasta, isoform_annotation ->
         tuple(meta, novel_fasta, isoform_annotation)
       }
 
