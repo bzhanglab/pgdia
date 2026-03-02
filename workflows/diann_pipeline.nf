@@ -17,6 +17,7 @@ params.outdir      = params.outdir ?: "results"
 params.diann_image = params.diann_image ?: "diann-2.0.2"
 params.diann_tar_tag = params.diann_tar_tag ?: "diann-2.0.2"        // tag used if loading tar
 params.diann_bin   = params.diann_bin   ?: "/diann-2.0.2/diann-linux"
+params.diann_cpus  = params.diann_cpus  ?: 22
 
 
 process LOAD_DIANN_IMAGE {
@@ -70,7 +71,7 @@ process LOAD_DIANN_IMAGE {
 process RUN_DIANN {
   label 'process_high_large_disk'
   tag { meta.id }
-  cpus task.cpus
+  cpus params.diann_cpus
 
   publishDir { "${params.outdir}/diann_output/${meta.id}" }, mode: 'copy', overwrite: true
 
