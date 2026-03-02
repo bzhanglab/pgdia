@@ -17,7 +17,6 @@ params.outdir      = params.outdir ?: "results"
 params.diann_image = params.diann_image ?: "diann-2.0.2"
 params.diann_tar_tag = params.diann_tar_tag ?: "diann-2.0.2"        // tag used if loading tar
 params.diann_bin   = params.diann_bin   ?: "/diann-2.0.2/diann-linux"
-params.diann_cpus  = params.diann_cpus  ?: 22
 
 
 process LOAD_DIANN_IMAGE {
@@ -71,7 +70,7 @@ process LOAD_DIANN_IMAGE {
 process RUN_DIANN {
   label 'process_high_large_disk'
   tag { meta.id }
-  cpus params.diann_cpus
+  cpus task.cpus
 
   publishDir { "${params.outdir}/diann_output/${meta.id}" }, mode: 'copy', overwrite: true
 
@@ -125,21 +124,78 @@ process RUN_DIANN {
 
 }
 
+process POSTPROCESS_DIANN_REPORT {
+  tag { meta.id }
+
+  conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
+  container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+      'https://depot.galaxyproject.org/singularity/python:3.8.3' :
+      'quay.io/biocontainers/python:3.8.3' }"
+
+  publishDir { "${params.outdir}/diann_output/${meta.id}" }, mode: 'copy', overwrite: true
+
+  input:
+    tuple val(meta), path(diann_report), path(novel_fasta), path(isoform_annotation)
+    path protein_reference_db
+
+  output:
+    tuple val(meta), path("${meta.id}_novel_matrix.tsv"), emit: processed_novel_matrix
+
+  script:
+    """
+    set -euo pipefail
+
+    WORKDIR="\${NXF_TASK_WORKDIR:-.}"
+    DEPS_DIR="\$WORKDIR/.pydeps"
+
+    python3 -m pip install --no-cache-dir --target "\$DEPS_DIR" pandas pyarrow biopython
+    export PYTHONPATH="\$DEPS_DIR:\${PYTHONPATH:-}"
+
+    python3 ${projectDir}/bin/process_parquet_report.py \\
+      --report-parquet "${diann_report}" \\
+      --output-prefix "${meta.id}" \\
+      --novel-fasta "${novel_fasta}" \\
+      --isoform-annotation "${isoform_annotation}" \\
+      --reference-fasta "${protein_reference_db}"
+    """
+}
+
 workflow DIANN_PIPELINE {
   take:
-    // expected items: tuple(meta, path(protein_db_fa), path(dia_raw))
+    // expected items: tuple(meta, path(protein_db_fa), path(dia_raw), path(novel_fasta), path(isoform_tmap))
     // meta.id is sample id
     samples_ch
 
   main:
 
     def diann_name_file_ch = LOAD_DIANN_IMAGE( Channel.value(params.diann_image) )
+    def protein_reference_db_ch = Channel.value(file(params.protein_reference_db, checkIfExists: true))
 
     // convert diann_image_name.txt to a value
     def diann_image_name_ch = diann_name_file_ch.map { f -> f.text.trim() }
 
-    diann_out_ch = RUN_DIANN(diann_image_name_ch, samples_ch).diann_report
+    def run_diann_input_ch = samples_ch
+      .map { meta, protein_db_fa, dia_raw, _, _ ->
+        tuple(meta, protein_db_fa, dia_raw)
+      }
+
+    def run_diann_out = RUN_DIANN(diann_image_name_ch, run_diann_input_ch)
+    def diann_out_ch = run_diann_out.diann_report
+    def postprocess_meta_ch = samples_ch
+      .map { meta, _, _, novel_fasta, isoform_annotation ->
+        tuple(meta, novel_fasta, isoform_annotation)
+      }
+
+    def postprocess_input_ch = diann_out_ch
+      .join(postprocess_meta_ch, by: 0, failOnMismatch: true)
+      .map { meta, diann_report, novel_fasta, isoform_annotation ->
+        tuple(meta, diann_report, novel_fasta, isoform_annotation)
+      }
+
+    def postprocess_out = POSTPROCESS_DIANN_REPORT(postprocess_input_ch, protein_reference_db_ch)
+    def postprocessed_novel_matrix_ch = postprocess_out.processed_novel_matrix
 
   emit:
     diann_out = diann_out_ch
+    diann_postprocessed = postprocessed_novel_matrix_ch
 }

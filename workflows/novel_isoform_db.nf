@@ -164,4 +164,5 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
 
   emit:
     isoform_db = predict_pep_ch
+    isoform_tmap = tmap_ch
 }

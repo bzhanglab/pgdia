@@ -247,10 +247,11 @@ workflow PGDIA {
       )
 
       // 3. Generate novel isoform DBs from StringTie GTFs
-      GENERATE_NOVEL_ISOFORM_DB(
+      def isoform_results = GENERATE_NOVEL_ISOFORM_DB(
           RUN_STRINGTIE.out.stringtie_gtf   // emits: [ val(meta), path(gtf) ]
       )
-      isoform_fasta = GENERATE_NOVEL_ISOFORM_DB.out.isoform_db
+      isoform_fasta = isoform_results.isoform_db
+      isoform_tmap = isoform_results.isoform_tmap
 
       //def isoform_fasta_gated = isoform_fasta.after(vcf_done)
       
@@ -260,6 +261,9 @@ workflow PGDIA {
 
       def isoform_norm = isoform_fasta.map { meta, pep ->
         tuple(meta.subMap(['id','single_end','dia_raw']), pep)
+      }
+      def isoform_tmap_norm = isoform_tmap.map { meta, tmap ->
+        tuple(meta.subMap(['id','single_end','dia_raw']), tmap)
       }
 
       def variant_norm = variant_fasta.map { meta, var_fa ->
@@ -281,20 +285,37 @@ workflow PGDIA {
       def dbs = COMBINE_PROTEIN_DBS(combine_in_ch, ch_protein_ref)
 
       def combined_db_ch = dbs.combined_db
+      def novel_db_ch = dbs.novel_db
 
-      def diann_input_ch = combined_db_ch.map { meta, protein_db ->
-          tuple(
-              meta,
-              protein_db,
-              file(meta.dia_raw)
-          )
+      def combined_db_norm = combined_db_ch.map { meta, protein_db ->
+        tuple(meta.subMap(['id','single_end','dia_raw']), protein_db)
       }
 
-      def diann_out_ch = DIANN_PIPELINE(diann_input_ch).diann_out
+      def novel_db_norm = novel_db_ch.map { meta, novel_db ->
+        tuple(meta.subMap(['id','single_end','dia_raw']), novel_db)
+      }
+
+      def diann_input_ch = combined_db_norm
+        .join(novel_db_norm, by: 0, failOnMismatch: true)
+        .join(isoform_tmap_norm, by: 0, failOnMismatch: true)
+        .map { meta, protein_db, novel_db, iso_tmap ->
+          tuple(
+            meta,
+            protein_db,
+            file(meta.dia_raw),
+            novel_db,
+            iso_tmap
+          )
+        }
+
+      def diann_results = DIANN_PIPELINE(diann_input_ch)
+      def diann_out_ch = diann_results.diann_out
+      def diann_postprocessed_ch = diann_results.diann_postprocessed
 
 
     emit:
       diann_report = diann_out_ch
+      diann_postprocessed_report = diann_postprocessed_ch
 }
 
 workflow {
