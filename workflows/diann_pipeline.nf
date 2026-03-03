@@ -141,6 +141,7 @@ process POSTPROCESS_DIANN_REPORT {
 
   output:
     tuple val(meta), path("${meta.id}_novel_matrix.tsv"), emit: processed_novel_matrix
+    tuple val(meta), path("${meta.id}_ref_matrix.tsv"), emit: processed_ref_matrix
 
   script:
     """
@@ -195,8 +196,10 @@ workflow DIANN_PIPELINE {
 
     def postprocess_out = POSTPROCESS_DIANN_REPORT(postprocess_input_ch, protein_reference_db_ch)
     def postprocessed_novel_matrix_ch = postprocess_out.processed_novel_matrix
+    def postprocessed_ref_matrix_ch = postprocess_out.processed_ref_matrix
 
   emit:
     diann_out = diann_out_ch
-    diann_postprocessed = postprocessed_novel_matrix_ch
+    diann_postprocessed_novel = postprocessed_novel_matrix_ch
+    diann_postprocessed_ref = postprocessed_ref_matrix_ch
 }

@@ -20,6 +20,9 @@ enst_ensg_dict = {}
 ensg_gene_dict = {}
 known_seqs = []
 
+FDR_SCORE_COLUMN = "PEP"
+FDR_SCORE_HIGHER_BETTER = True
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -173,16 +176,20 @@ def filter_at_fdr_cutoff(df_subset, df_all, sort_column, is_novel):
     return df_subset, df_filtered, df_filtered_no_decoy
 
 
-def compute_global_fdr(df_subset, sort_column):
+def compute_global_fdr(df_subset, sort_column, higher_better=False):
     if df_subset.empty:
         return df_subset, df_subset, df_subset
-    df_subset = df_subset.sort_values(by=sort_column, ascending=True).reset_index(drop=True)
+    if sort_column not in df_subset.columns:
+        raise KeyError(f"Required score column '{sort_column}' was not found in DIA-NN report.")
+
+    # Higher-better scores (e.g. PEP) should be sorted descending.
+    df_subset = df_subset.sort_values(by=sort_column, ascending=not higher_better).reset_index(drop=True)
 
     df_subset["Cumulative Decoys"] = df_subset["Decoy"].cumsum()
     df_subset["Cumulative Targets"] = (1 - df_subset["Decoy"]).cumsum()
 
     # fdr_column = " "
-    if sort_column == "Q.Value":
+    if sort_column in ("Q.Value", "PEP"):
         fdr_column = "Cumulative FDR"
     else:
         fdr_column = "Cumulative global FDR"
@@ -472,14 +479,25 @@ def recalculate_global_fdr():
     # Compute run-specific and global FDR together
     run_specific_filtered_dfs = []
     fdr_run_dfs = []
+    if FDR_SCORE_COLUMN not in df_fdr.columns:
+        raise KeyError(f"Required score column '{FDR_SCORE_COLUMN}' was not found in DIA-NN report.")
+
     for run_index, run_df in run_dfs.items():
-        fdr_run_df, filtered_run_df, _ = compute_global_fdr(run_df, "Q.Value")
+        fdr_run_df, filtered_run_df, _ = compute_global_fdr(
+            run_df,
+            FDR_SCORE_COLUMN,
+            higher_better=FDR_SCORE_HIGHER_BETTER,
+        )
         fdr_run_dfs.append(fdr_run_df)
         run_specific_filtered_dfs.append(filtered_run_df)
 
     merged_fdr_run_df = pd.concat(fdr_run_dfs, ignore_index=True)
     # merged_run_df = pd.concat(run_specific_filtered_dfs, ignore_index=True)
-    global_df, _, global_fdr_df = compute_global_fdr(merged_fdr_run_df, "Global.Q.Value")
+    global_df, _, global_fdr_df = compute_global_fdr(
+        merged_fdr_run_df,
+        FDR_SCORE_COLUMN,
+        higher_better=FDR_SCORE_HIGHER_BETTER,
+    )
     print(f"global FDR only: {global_fdr_df.shape[0]}")
     get_id_num(global_fdr_df)
     global_fdr_df = global_fdr_df[(global_fdr_df["Cumulative FDR"] <= 0.01)]
@@ -495,8 +513,8 @@ def recalculate_global_fdr():
     else:
         print("Skipping gene annotation: --novel-fasta/--isoform-annotation were not provided.")
 
-    # global_pr_matrix_ensp = global_pr_matrix[~global_pr_matrix["Novel"]].reset_index(drop=True)
-    # global_pr_matrix_ensp.to_csv(data_path_prefix + "_ref_matrix.tsv", sep='\t', index=None)
+    global_pr_matrix_ensp = global_pr_matrix[~global_pr_matrix["Novel"]].reset_index(drop=True)
+    global_pr_matrix_ensp.to_csv(data_path_prefix + "_ref_matrix.tsv", sep='\t', index=None)
 
     global_pr_matrix_novel = global_pr_matrix[global_pr_matrix["Novel"]].reset_index(drop=True)
     if known_seqs:

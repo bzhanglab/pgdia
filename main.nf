@@ -310,12 +310,14 @@ workflow PGDIA {
 
       def diann_results = DIANN_PIPELINE(diann_input_ch)
       def diann_out_ch = diann_results.diann_out
-      def diann_postprocessed_ch = diann_results.diann_postprocessed
+      def diann_postprocessed_novel_ch = diann_results.diann_postprocessed_novel
+      def diann_postprocessed_ref_ch = diann_results.diann_postprocessed_ref
 
 
     emit:
       diann_report = diann_out_ch
-      diann_postprocessed_report = diann_postprocessed_ch
+      diann_postprocessed_novel_report = diann_postprocessed_novel_ch
+      diann_postprocessed_ref_report = diann_postprocessed_ref_ch
 }
 
 workflow {

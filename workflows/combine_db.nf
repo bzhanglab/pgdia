@@ -7,7 +7,7 @@ process COMBINE_PROTEIN_DBS {
         'https://depot.galaxyproject.org/singularity/python:3.8.3' :
         'quay.io/biocontainers/python:3.8.3' }"
 
-    publishDir "${params.outdir}/protein_db", mode: 'copy', overwrite: true
+    publishDir "${params.outdir}/protein_db/${meta.id}", mode: 'copy', overwrite: true
 
     input:
         tuple val(meta), path(var_modified_peptides), path(novel_pep)
