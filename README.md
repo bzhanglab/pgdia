@@ -3,9 +3,9 @@
 [![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
 [![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
 
-# PG-DIA (Zhang Lab)
+# PG-DIA
 
-PG-DIA is a Nextflow DSL2 workflow for building per-sample customized protein databases from RNA-seq and searching matched DIA-MS data against those databases. This Zhang Lab implementation combines RNA variant calling, transcript assembly, novel isoform ORF prediction, protein database assembly, and DIA-NN reporting in one pipeline.
+PG-DIA is a Nextflow DSL2 workflow for building customized protein databases from RNA-seq and searching matched DIA-MS data against those databases. This implementation combines RNA-seq variant calling, transcript assembly, novel isoform ORF prediction, protein database assembly, and novel peptides reporting in one pipeline.
 
 The repository follows an nf-core-style layout, but the root `README.md` is the best high-level guide for the current Zhang Lab workflow.
 
@@ -16,7 +16,7 @@ The repository follows an nf-core-style layout, but the root `README.md` is the 
 For each sample, the workflow:
 
 1. Accepts RNA-seq input as FASTQ, BAM, or CRAM together with one DIA raw file path.
-2. Runs the RNA variant branch from the bundled `rnavar` workflow to produce duplicate-marked BAMs and annotated VCFs.
+2. Runs the RNA variant branch to produce BAMs and annotated VCFs.
 3. Converts annotated variants into variant peptide FASTA entries with `pypgatk`, then annotates amino acid changes.
 4. Runs StringTie on the RNA-seq alignment output.
 5. Runs `gffcompare`, filters novel transcript models, extracts transcript FASTA with `gffread`, and predicts ORFs with TransDecoder.
@@ -39,9 +39,9 @@ An example samplesheet for this branch looks like this:
 
 ```csv
 sample,fastq_1,fastq_2,bam,bai,cram,crai,dia_raw,strandedness
-SAMPLE_A,/data/rna/SAMPLE_A_R1.fastq.gz,/data/rna/SAMPLE_A_R2.fastq.gz,,,,,/data/dia/SAMPLE_A.d,forward
+SAMPLE_A,/data/rna/SAMPLE_A_R1.fastq.gz,/data/rna/SAMPLE_A_R2.fastq.gz,,,,,/data/dia/SAMPLE_A.d,unstranded
 SAMPLE_B,,,/data/rna/SAMPLE_B.markdup.bam,/data/rna/SAMPLE_B.markdup.bam.bai,,,/data/dia/SAMPLE_B.RAW,unstranded
-SAMPLE_C,,,,,/data/rna/SAMPLE_C.cram,/data/rna/SAMPLE_C.cram.crai,/data/dia/SAMPLE_C.d,reverse
+SAMPLE_C,,,,,/data/rna/SAMPLE_C.cram,/data/rna/SAMPLE_C.cram.crai,/data/dia/SAMPLE_C.d,unstranded
 ```
 
 Column notes:
@@ -53,13 +53,8 @@ Column notes:
 | `bam`, `bai` | Conditional | Coordinate-sorted BAM and index if alignment is already done. |
 | `cram`, `crai` | Conditional | CRAM and CRAI if starting from CRAM instead of BAM. |
 | `dia_raw` | Yes | DIA-MS raw path for the sample, for example a timsTOF `.d` directory or vendor raw file. |
-| `strandedness` | Optional | Passed to StringTie. Supported values are `forward`, `reverse`, and `unstranded`. |
+| `strandedness` | Yes | Passed to StringTie. Supported values are `forward`, `reverse`, and `unstranded`. |
 
-Behavior to keep in mind:
-
-- Multiple FASTQ lanes are supported and are concatenated by sample.
-- Only one `dia_raw` entry is supported per sample.
-- VCF input is still present in the inherited schema, but VCF-only rows are not sufficient for the full PG-DIA workflow because novel isoform discovery still requires RNA-seq alignment data for StringTie.
 
 ### Required reference and workflow parameters
 
@@ -76,39 +71,33 @@ For the RNA variant branch:
 - provide `--dbsnp` and/or `--known_indels` if you want base recalibration
 - otherwise set `--skip_baserecalibration`
 
-Important implementation detail:
-
-- `--protein_reference_db` is required by the Zhang Lab workflow even though it is not yet surfaced in the top-level schema-generated docs.
-
 ## Quick start
 
 Run from the repository root:
 
 ```bash
-nextflow run . \
+nextflow run bzhanglab/pgdia \
   -profile docker \
   --input samplesheet.csv \
   --outdir results \
-  --genome all \
+  --genome GRCh38 \
   --read_length 151 \
-  --protein_reference_db /path/to/reference_proteome.fa \
+  --protein_reference_db /path/to/reference_proteome.fa \ 
   --skip_baserecalibration
 ```
 
 If you have known sites for GATK RNA recalibration, use them instead of skipping BQSR:
 
 ```bash
-nextflow run . \
+nextflow run bzhanglab/pgdia \
   -profile docker \
   --input samplesheet.csv \
   --outdir results \
-  --genome all \
+  --genome GRCh38 \
   --read_length 151 \
   --protein_reference_db /path/to/reference_proteome.fa \
   --dbsnp /path/to/dbsnp.vcf.gz \
-  --dbsnp_tbi /path/to/dbsnp.vcf.gz.tbi \
-  --known_indels /path/to/known_indels.vcf.gz \
-  --known_indels_tbi /path/to/known_indels.vcf.gz.tbi
+  --known_indels /path/to/known_indels.vcf.gz 
 ```
 
 Useful runtime options:
@@ -121,7 +110,7 @@ Useful runtime options:
 
 ## Reference configuration
 
-The bundled `conf/igenomes.config` defines a Zhang Lab-specific `--genome all` entry pointing to:
+The bundled `conf/igenomes.config` defines specific `--genome GRCh38` entry pointing to:
 
 - genome FASTA
 - annotation GTF
@@ -154,48 +143,10 @@ Published results are written under `--outdir` and typically include:
 | `protein_db/<sample>/` | `<sample>_combined_protein_db.fa` and `<sample>_novel_protein_db.fa` |
 | `diann_output/<sample>/` | DIA-NN parquet report, matrices parquet, and postprocessed novel/reference TSV matrices |
 
-Key per-sample deliverables are:
-
-- `<sample>_combined_protein_db.fa`
-- `<sample>_novel_protein_db.fa`
-- `<sample>_report.parquet`
-- `<sample>_novel_matrix.tsv`
-- `<sample>_ref_matrix.tsv`
-
-## Repository structure
-
-```text
-.
-├── main.nf
-├── nextflow.config
-├── conf/
-├── workflows/
-│   ├── rnavar_mini.nf
-│   ├── variant_db.nf
-│   ├── novel_isoform_db.nf
-│   ├── combine_db.nf
-│   └── diann_pipeline.nf
-├── workflows/stringtie/
-├── bin/
-│   ├── assemble_protein_db.py
-│   ├── get_transcript.py
-│   ├── get_var_aa_change.py
-│   └── process_parquet_report.py
-├── assets/
-└── docs/
-```
-
-## Current limitations and branch-specific notes
-
-- The inherited nf-core template docs and test configs are not yet fully aligned with this Zhang Lab implementation. Use this `README.md` as the primary run guide for now.
-- The top-level samplesheet schema still exposes some inherited `rnavar` entry modes. In practice, the full PG-DIA workflow needs RNA-seq alignment information plus `dia_raw` for each sample.
-- Only one DIA raw path is supported per sample in the current grouping logic.
-- DIA-NN runs against per-sample databases, not against one cohort-wide merged database.
-- If `--diann_image` points to a tar archive, the helper step loads it with Docker, so that process needs Docker CLI access on the execution host.
 
 ## Credits
 
-PG-DIA in this repository was written and adapted by Wenrong Chen in the Zhang Lab, building on nf-core and bundled `rnavar` components.
+PG-DIA in this repository was written and adapted by Wenrong Chen in the Zhang Lab, building on nf-core components.
 
 ## Citation
 
