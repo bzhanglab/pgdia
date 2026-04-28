@@ -20,6 +20,9 @@ enst_ensg_dict = {}
 ensg_gene_dict = {}
 known_seqs = []
 
+REFERENCE_PROTEIN_PREFIXES = ("ENSP", "ENSMUSP")
+REFERENCE_TRANSCRIPT_RE = re.compile(r"(ENST\d+(?:\.\d+)?|ENSMUST\d+(?:\.\d+)?)")
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -108,8 +111,11 @@ def load_reference_maps(reference_fasta):
         if len(rids) >= 3:
             enst_ensg_dict[rids[1]] = rids[2]
             ensp_ensg_dict[rids[0]] = rids[2]
+            enst_ensg_dict[rids[1].split(".")[0]] = rids[2]
+            ensp_ensg_dict[rids[0].split(".")[0]] = rids[2]
             gene_symbol = parts[2].split()[0]
             ensg_gene_dict[rids[2]] = gene_symbol
+            ensg_gene_dict[rids[2].split(".")[0]] = gene_symbol
 
 
 def convert_parquet_to_tsv(file_path):
@@ -118,12 +124,33 @@ def convert_parquet_to_tsv(file_path):
     return df
 
 
+def reference_record_id(entry):
+    token = str(entry).split(";")[0]
+    parts = token.split("|")
+    if len(parts) >= 3:
+        return parts[1]
+    return token
+
+
+def is_reference_protein_id(entry):
+    rid = reference_record_id(entry)
+    return rid.startswith(REFERENCE_PROTEIN_PREFIXES)
+
+
+def reference_gene_id(entry):
+    rid = reference_record_id(entry)
+    fields = rid.split("_")
+    if len(fields) >= 3:
+        return fields[2]
+    return ensp_ensg_dict.get(rid, ensp_ensg_dict.get(rid.split(".")[0], "None"))
+
+
 def prioritize_ensp(entry):
     if ";" in entry:
         parts = entry.split(";")
         first_part = parts[0]
-        if not (first_part.startswith("ENSP") or first_part.startswith("gc|ENSP")):
-            ensp_candidates = [p for p in parts if "ENSP" in p]
+        if not is_reference_protein_id(first_part):
+            ensp_candidates = [p for p in parts if is_reference_protein_id(p)]
             return ensp_candidates[0] if ensp_candidates else first_part
         return first_part
     return entry
@@ -205,8 +232,7 @@ def compute_separate_fdr(df_all, fdr_level):
 
     # df_all = df_all.sort_values(by="Q.Value", ascending=True).reset_index(drop=True)
     # Split into two groups, separate all IDs in the report
-    # df_ref = df_fdr[df_fdr["Processed_Protein.Ids"].str.startswith("ENSP", na=False)]  # reference group
-    df_other = df_all[~df_all["Processed_Protein.Ids"].str.startswith("ENSP", na=False)]  # Non-ref group
+    df_other = df_all[~df_all["Processed_Protein.Ids"].apply(is_reference_protein_id)]  # Non-ref group
 
     if fdr_level == "psm":
         global_score_column = "Q.Value"
@@ -316,20 +342,20 @@ def extract_var_annotation(fasta_path):
     fasta_dict = {}
     for rec in SeqIO.parse(fasta_path, "fasta"):
         header = rec.id
-        if header.startswith("var_") and "ENST" in header:
+        if header.startswith("var_") and REFERENCE_TRANSCRIPT_RE.search(header):
             k = header.split(";")[0]
-            if k.find("_ENST") != -1:
-                flag = k.find("_ENST")
-                k = k[:flag]
+            m_transcript = re.search(r"_(ENST\d+|ENSMUST\d+)", k)
+            if m_transcript:
+                k = k[:m_transcript.start()]
             fasta_dict[k] = header
 
     return fasta_dict
 
 
 def annotate_var_id(protein_id, annotate_dict):
-    flag = protein_id.find("_ENST")
-    if flag != -1:
-        protein_id = protein_id[:flag]
+    m_transcript = re.search(r"_(ENST\d+|ENSMUST\d+)", protein_id)
+    if m_transcript:
+        protein_id = protein_id[:m_transcript.start()]
     if protein_id in annotate_dict:
         return annotate_dict[protein_id]
     return protein_id
@@ -351,7 +377,7 @@ def extract_novel_isoform_annotation(file_path):
 
 def symbol_from_gene_id(gid: str) -> str:
     if gid and gid not in ("None", "NotPrimary", "NA"):
-        return ensg_gene_dict.get(gid, "NA")
+        return ensg_gene_dict.get(gid, ensg_gene_dict.get(gid.split(".")[0], "NA"))
     return "NA"
 
 
@@ -368,8 +394,8 @@ def get_gene_info(input_df, var_fasta_path, isoform_file_path):
         gene_id = "None"
         gene_symbol = "NA"
 
-        if "ENSP" in protein_id:
-            gene_id = protein_id.split(";")[0].split("_")[2]
+        if is_reference_protein_id(protein_id):
+            gene_id = reference_gene_id(protein_id)
             gene_symbol = symbol_from_gene_id(gene_id)
         elif "STRG" in protein_id:
             protein_id = protein_id.split(";")[0]
@@ -382,7 +408,7 @@ def get_gene_info(input_df, var_fasta_path, isoform_file_path):
             new_protein_id = annotate_var_id(protein_id, var_fasta_dict)
             input_df.at[i, "Processed_Protein.Ids"] = new_protein_id
             # 1) Get gene_id (ENSG) via ENST -> ENSG if possible
-            m_enst = re.search(r'(ENST\d+)', new_protein_id)
+            m_enst = REFERENCE_TRANSCRIPT_RE.search(new_protein_id)
             if m_enst:
                 enst_id = m_enst.group(1)
                 gene_id = enst_ensg_dict.get(enst_id, "NotPrimary")
@@ -392,7 +418,7 @@ def get_gene_info(input_df, var_fasta_path, isoform_file_path):
 
             # 3) Fallback: extract gene symbol from the string (e.g., _ENST..._MRPL15_)
             if gene_symbol == "NA":
-                m_sym = re.search(r'(ENST\d+)_([A-Za-z0-9]+)', new_protein_id)
+                m_sym = re.search(r'(?:ENST\d+(?:\.\d+)?|ENSMUST\d+(?:\.\d+)?)_([A-Za-z0-9]+)', new_protein_id)
                 if m_sym:
                     gene_symbol = m_sym.group(2)
 
@@ -414,7 +440,7 @@ def process_report_with_separate_fdr():
     df_fdr = convert_parquet_to_tsv(data_path)
 
     df_fdr["Processed_Protein.Ids"] = df_fdr["Protein.Ids"].apply(prioritize_ensp)
-    df_fdr["Novel"] = ~df_fdr["Processed_Protein.Ids"].str.startswith("ENSP", na=False)
+    df_fdr["Novel"] = ~df_fdr["Processed_Protein.Ids"].apply(is_reference_protein_id)
 
     run_dfs = split_by_run_index(df_fdr)
     filtered_ensp = []
@@ -465,7 +491,7 @@ def recalculate_global_fdr():
     df_fdr = convert_parquet_to_tsv(data_path)
 
     df_fdr["Processed_Protein.Ids"] = df_fdr["Protein.Ids"].apply(prioritize_ensp)
-    df_fdr["Novel"] = ~df_fdr["Processed_Protein.Ids"].str.startswith("ENSP", na=False)
+    df_fdr["Novel"] = ~df_fdr["Processed_Protein.Ids"].apply(is_reference_protein_id)
 
     run_dfs = split_by_run_index(df_fdr)
 
