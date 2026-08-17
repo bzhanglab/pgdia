@@ -141,7 +141,14 @@ Published results are written under `--outdir` and typically include:
 | `stringtie/` | Per-sample StringTie GTF assemblies |
 | `isoform_db/<sample>/` | Predicted peptide FASTA from novel isoforms |
 | `protein_db/<sample>/` | `<sample>_combined_protein_db.fa` and `<sample>_novel_protein_db.fa` |
-| `diann_output/<sample>/` | DIA-NN parquet report, matrices parquet, and postprocessed novel/reference TSV matrices |
+| `diann_output/<sample>/` | DIA-NN parquet report, matrices parquet, per-run transition XIC parquet files, and postprocessed novel/reference TSV matrices |
+
+DIA-NN is run with `--xic`, which publishes transition-level chromatograms as
+`diann_output/<sample>/<sample>_report_xic/*.xic.parquet`. Use
+[`bin/plot_diann_xic.py`](bin/plot_diann_xic.py) to extract one precursor from
+these files, export its transition-level values, and generate per-run and
+combined XIC plots. See [the output documentation](docs/output.md#dia-nn-results-and-transition-xics)
+for the input columns and a reproducible command.
 
 
 ## Credits

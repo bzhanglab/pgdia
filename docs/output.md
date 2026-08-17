@@ -14,7 +14,48 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 
 - [FastQC](#fastqc) - Raw read QC
 - [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
+- [DIA-NN results and transition XICs](#dia-nn-results-and-transition-xics) - Precursor reports, quantitative matrices, and transition-level chromatograms
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
+
+### DIA-NN results and transition XICs
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `diann_output/<sample>/`
+  - `<sample>_report.parquet`: DIA-NN precursor-level report.
+  - `<sample>_matrices.parquet`: DIA-NN quantitative matrices.
+  - `<sample>_report_xic/*.xic.parquet`: one transition-level XIC file per DIA run.
+  - `<sample>_novel_matrix.tsv`: postprocessed non-reference peptide matrix.
+  - `<sample>_ref_matrix.tsv`: postprocessed reference peptide matrix.
+
+</details>
+
+PG-DIA enables the DIA-NN `--xic` option. Each `*.xic.parquet` file contains
+the columns `pr` (precursor identifier), `feature` (fragment ion or MS1 trace),
+`info`, `rt` (retention time in minutes), and `value` (intensity). These raw
+transition-level files can be filtered directly for downstream inspection.
+
+The repository also provides `bin/plot_diann_xic.py`, which reads only the
+requested precursor from the parquet files, writes the filtered values as a
+compressed TSV, and creates individual-run and combined PNG/PDF plots. For
+example, the KRAS G13D residue is position 8 within `LVVVGAGDVGK`:
+
+```bash
+python bin/plot_diann_xic.py \
+  --xic-dir results/diann_output/HCT15/HCT15_report_xic \
+  --peptide LVVVGAGDVGK \
+  --charge 2 \
+  --variant-position 8 \
+  --output-dir results/diann_output/HCT15/xic_plots
+```
+
+The script requires Python 3.9 or later with `pandas`, `pyarrow`, and
+`matplotlib`. The `--precursor` option can be used instead of `--peptide` and
+`--charge` when the exact value from the parquet `pr` column contains a
+modification annotation. Fragment ions containing the optional variant
+position are marked with `*`; this annotation identifies ions whose sequence
+span includes the residue and is not itself an independent localization score.
 
 ### FastQC
 

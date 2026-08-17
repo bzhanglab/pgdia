@@ -9,7 +9,7 @@ nextflow.enable.dsl=2
  * This Nextflow process:
  * - takes the raw data path from meta.raw (staged as a path input)
  * - takes the per-sample FASTA from meta.fasta (staged as a path input)
- * - writes outputs as <id>_report.parquet and <id>_lib.parquet (and matrices parquet)
+ * - writes the report, matrices, library, and per-run transition XIC parquet files
  * - runs inside the diann-2.0.2 container and calls /diann-2.0.2/diann-linux
  */
 
@@ -74,6 +74,7 @@ process RUN_DIANN {
   cpus params.diann_cpus
 
   publishDir { "${params.outdir}/diann_output/${meta.id}" }, mode: 'copy', overwrite: true
+  container { diann_image_name }
 
   input:
     val(diann_image_name)
@@ -83,8 +84,7 @@ process RUN_DIANN {
     tuple val(meta), path("${meta.id}_report.parquet"), emit: diann_report
     path("${meta.id}_lib.parquet"), optional: true
     path("${meta.id}_matrices.parquet"), optional: true
-
-  container { diann_image_name }
+    path("${meta.id}_report_xic"), emit: diann_xic, optional: true
 
   script:
     """
@@ -118,6 +118,7 @@ process RUN_DIANN {
       --var-mod UniMod:35,15.994915,M \\
       --var-mod UniMod:1,42.010565,*n \\
       --peptidoforms \\
+      --xic \\
       --reanalyse \\
       --rt-profiling \\
       --report-decoys
@@ -200,6 +201,7 @@ workflow DIANN_PIPELINE {
 
   emit:
     diann_out = diann_out_ch
+    diann_xic = run_diann_out.diann_xic
     diann_postprocessed_novel = postprocessed_novel_matrix_ch
     diann_postprocessed_ref = postprocessed_ref_matrix_ch
 }
