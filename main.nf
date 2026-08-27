@@ -228,7 +228,11 @@ workflow PGDIA {
       )
 
       def ch_markdup_bams = rnavar_run.markdup_bams
-      def ch_annotated_vcf = rnavar_run.annotated_vcf
+      def ch_annotated_vcf = params.precomputed_annotated_vcf \
+        ? ch_markdup_bams.map { meta, _bam, _bai ->
+            tuple(meta, file(params.precomputed_annotated_vcf, checkIfExists: true))
+          }
+        : rnavar_run.annotated_vcf
 
       def ch_vcf_for_var = ch_annotated_vcf.map { item ->
           tuple(item[0], item[1])

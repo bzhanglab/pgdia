@@ -26,6 +26,8 @@ For each sample, the workflow:
 
 This is a sample-matched workflow: each RNA-seq sample is paired to one DIA raw input and yields its own customized database and DIA-NN output.
 
+A small [simulated DIA-MS fixture](examples/runnable_example/README.md) is included for local file-ingestion and DIA-NN integration testing.
+
 ## Inputs
 
 ### Samplesheet
@@ -73,7 +75,17 @@ For the RNA variant branch:
 
 ## Quick start
 
-Run from the repository root:
+For a repository-local test using simulated RNA-seq, variant, reference, and
+DIA-MS inputs, follow the [runnable example tutorial](examples/runnable_example/README.md):
+
+```bash
+nextflow run main.nf -profile test,docker --outdir results/test
+```
+
+The tutorial includes DIA-NN image and executable-path configuration, a
+configuration preview, expected outputs, and fixture-regeneration commands.
+
+For user data, run from the repository root:
 
 ```bash
 nextflow run bzhanglab/pgdia \
@@ -82,7 +94,7 @@ nextflow run bzhanglab/pgdia \
   --outdir results \
   --genome GRCh38 \
   --read_length 151 \
-  --protein_reference_db /path/to/reference_proteome.fa \ 
+  --protein_reference_db /path/to/reference_proteome.fa \
   --skip_baserecalibration
 ```
 

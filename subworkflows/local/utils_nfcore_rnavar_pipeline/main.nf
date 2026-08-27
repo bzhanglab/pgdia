@@ -78,6 +78,7 @@ workflow PIPELINE_INITIALISATION {
         params.input,
         params.known_indels,
         params.known_indels_tbi,
+        params.precomputed_annotated_vcf,
         params.star_index
     ]
 
@@ -90,13 +91,15 @@ workflow PIPELINE_INITIALISATION {
     //
 
     def samplesheetList = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
-    def bool_align = samplesheetList.find { _meta, fastq_1, _fastq_2, _bam, _bai, _cram, _crai, _vcf, _tbi, _dia_raw ->
-        fastq_1
-    } ? true : false
+    def bool_align = samplesheetList.find { row -> row[1] } ? true : false
 
     ch_samplesheet = Channel.fromList(samplesheetList)
-        .map{ meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw ->
-            def new_meta = meta + [ single_end: !fastq_2 ]
+        .map{ row ->
+            def (meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw, strandedness) = row
+            def new_meta = meta + [
+                single_end: !fastq_2,
+                strandedness: strandedness ?: 'unstranded'
+            ]
             tuple(meta.id, new_meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw)
         }
 

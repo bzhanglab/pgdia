@@ -1,0 +1,2 @@
+sample,fastq_1,fastq_2,bam,bai,cram,crai,vcf,tbi,dia_raw,strandedness
+SIM_DIA,,,examples/runnable_example/data/simulated_rna.bam,examples/runnable_example/data/simulated_rna.bam.bai,,,,,examples/runnable_example/data/simulated_dia.mzML,unstranded

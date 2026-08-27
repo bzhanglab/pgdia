@@ -1,0 +1,7 @@
+##fileformat=VCFv4.2
+##contig=<ID=chrSim,length=1531>
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">
+##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: Allele|Consequence|IMPACT|SYMBOL|Gene|Feature_type|Feature|BIOTYPE|EXON|INTRON|HGVSc|HGVSp|cDNA_position|CDS_position|Protein_position|Amino_acids">
+##INFO=<ID=Source,Number=1,Type=String,Description="Variant source">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SIM_DIA
+chrSim	503	SIM_VAR_001	G	A	60	PASS	AF=0.50;CSQ=A|missense_variant|MODERATE|SIM_GENE001|SIM_GENE001|Transcript|SIM_TX001|protein_coding|1/1||c.3G>A|p.Met1Ile|3|3|1/176|M/I;Source=simulated	GT	0/1

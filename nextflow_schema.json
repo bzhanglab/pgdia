@@ -94,6 +94,14 @@
                     "description": "GTF feature name used when generating the exon BED (e.g. exon, CDS, gene).",
                     "default": "exon",
                     "fa_icon": "fas fa-list"
+                },
+                "precomputed_annotated_vcf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.vcf$",
+                    "description": "Optional single-sample, annotated VCF used for downstream protein database construction while retaining the RNA-seq alignment for transcript assembly.",
+                    "hidden": true
                 }
 
             }

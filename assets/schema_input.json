@@ -74,6 +74,11 @@
                 "description": "Path to DIA-MS raw data file or directory (e.g. .d for timsTOF)",
                 "pattern": ".*",
                 "errorMessage": "DIA RAW file should end with `.d` or '.RAW', should not contains spaces and should exist."
+            },
+            "strandedness": {
+                "type": "string",
+                "enum": ["forward", "reverse", "unstranded"],
+                "description": "RNA-seq library strandedness used by StringTie."
             }
         },
         "oneOf": [

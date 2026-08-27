@@ -1,0 +1,3 @@
+chrSim	PGDIA	transcript	501	1031	.	+	.	gene_id "SIM_GENE001"; transcript_id "SIM_TX001"; gene_name "SIM_GENE001";
+chrSim	PGDIA	exon	501	1031	.	+	.	gene_id "SIM_GENE001"; transcript_id "SIM_TX001"; gene_name "SIM_GENE001";
+chrSim	PGDIA	CDS	501	1028	.	+	0	gene_id "SIM_GENE001"; transcript_id "SIM_TX001"; gene_name "SIM_GENE001";
