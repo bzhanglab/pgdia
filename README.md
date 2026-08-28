@@ -116,7 +116,7 @@ Useful runtime options:
 
 - `-profile docker`, `-profile singularity`, `-profile conda`, or `-profile mamba`
 - `-resume` to continue from a previous run
-- `--diann_image` to point to a DIA-NN container image name or tarball
+- `--diann_image` to point to a DIA-NN container image name or tarball; download the [DIA-NN 2.0.2 image](https://aws2.zhang-lab.org/diann-2.0.2.tar.gz)
 - `--diann_bin` if the DIA-NN executable path inside the image differs from the default
 - `--diann_cpus` to control DIA-NN threads
 
