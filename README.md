@@ -7,8 +7,6 @@
 
 PG-DIA is a Nextflow DSL2 workflow for building customized protein databases from RNA-seq and searching matched DIA-MS data against those databases. This implementation combines RNA-seq variant calling, transcript assembly, novel isoform ORF prediction, protein database assembly, and novel peptides reporting in one pipeline.
 
-The repository follows an nf-core-style layout, but the root `README.md` is the best high-level guide for the current Zhang Lab workflow.
-
 ![PG-DIA workflow overview](docs/images/pgdia_workflow.png)
 
 ## What the pipeline does
