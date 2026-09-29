@@ -33,8 +33,14 @@ process SNPEFF_SNPEFF {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def cache_command = cache ? "-dataDir \${PWD}/${cache}" : ""
     """
+    config_command=""
+    if [[ -s "\${PWD}/${cache}/snpEff.config" ]]; then
+        config_command="-config \${PWD}/${cache}/snpEff.config"
+    fi
+
     snpEff \\
         -Xmx${avail_mem}M \\
+        \$config_command \\
         $db \\
         $args \\
         -csvStats ${prefix}.csv \\

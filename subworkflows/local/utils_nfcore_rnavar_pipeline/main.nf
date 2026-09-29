@@ -96,8 +96,15 @@ workflow PIPELINE_INITIALISATION {
 
     ch_samplesheet = Channel.fromList(samplesheetList)
         .map{ meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw ->
-            def new_meta = meta + [ single_end: !fastq_2 ]
-            tuple(meta.id, new_meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw)
+            def db_id = meta.id
+            def run_id = meta.run ?: deriveRunId(fastq_1 ?: bam ?: cram ?: vcf ?: db_id)
+            def new_meta = meta + [
+                id         : "${db_id}__${run_id}",
+                db_id      : db_id,
+                rnaseq_run : run_id,
+                single_end : !fastq_2
+            ]
+            tuple(new_meta.id, new_meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw)
         }
 
     emit:
@@ -164,6 +171,9 @@ workflow PIPELINE_COMPLETION {
 //
 def validateInputParameters() {
     genomeExistsError()
+    if (!params.organism || !params.taxonomy_id) {
+        error("Protein FASTA species metadata is missing. Set --organism and --taxonomy_id, or define organism and taxonomy_id in the selected genome configuration.")
+    }
 }
 
 //
@@ -195,21 +205,31 @@ def checkSamplesAfterGrouping(input) {
     def crai_list = crais.findAll { it -> it != [] }
     def vcf_list = vcfs.findAll { it -> it != [] }
     def tbi_list = tbis.findAll { it -> it != [] }
-    def dia_raw_list  = dia_raws.findAll { it -> it != [] }
+    def dia_raw_list  = dia_raws.findAll { it }
 
 
     def alignment_file_list = bam_list + cram_list
     if(alignment_file_list.size() > 1) {
-        error("Please check input samplesheet -> Multiple BAM/CRAM files per sample are not supported: ${metas[0].id}")
+        error("Please check input samplesheet -> Multiple BAM/CRAM files per RNA-seq run are not supported: ${metas[0].id}")
     }
 
-    def fastqs = fastqs_1_list + fastqs_2_list
+    def single_end = metas[0].single_end
+    if (!single_end && fastqs_1_list.size() != fastqs_2_list.size()) {
+        error("Please check input samplesheet -> Paired-end RNA-seq run ${metas[0].id} has ${fastqs_1_list.size()} R1 file(s) but ${fastqs_2_list.size()} R2 file(s)")
+    }
+
+    // CAT_FASTQ expects paired lanes interleaved as R1, R2, R1, R2, ... .
+    // A single R1/R2 pair therefore remains a two-element direct input.
+    def fastqs = single_end
+        ? fastqs_1_list
+        : [fastqs_1_list, fastqs_2_list].transpose().flatten()
     if(alignment_file_list.size() == 1 && fastqs.size() > 0) {
         error("Please check input samplesheet -> Detected FASTQ and BAM/CRAM files for the same sample. Please provide only one file type per sample: ${metas[0].id}")
     }
 
-    if (dia_raw_list.size() > 1) {
-        error("Please check input samplesheet -> Multiple DIA raw files per sample are not supported: ${metas[0].id}")
+    def dia_raw_unique = dia_raw_list.unique()
+    if (dia_raw_unique.size() > 1) {
+        error("Please check input samplesheet -> Multiple DIA raw files per RNA-seq run are not supported: ${metas[0].id}")
     }
 
     // Check that multiple runs of the same sample are of the same datatype i.e. single-end / paired-end
@@ -218,7 +238,18 @@ def checkSamplesAfterGrouping(input) {
         error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
     }
 
-    return [ metas[0], fastqs, bam_list[0] ?: [], bai_list[0] ?: [], cram_list[0] ?: [], crai_list[0] ?: [], vcf_list[0] ?: [], tbi_list[0] ?: [], dia_raw_list ? dia_raw_list[0] : []]
+    return [ metas[0], fastqs, bam_list[0] ?: [], bai_list[0] ?: [], cram_list[0] ?: [], crai_list[0] ?: [], vcf_list[0] ?: [], tbi_list[0] ?: [], dia_raw_unique ? dia_raw_unique[0] : []]
+}
+
+def deriveRunId(input_file) {
+    def raw = input_file?.toString() ?: 'run'
+    def name = raw.tokenize('/').last()
+    name = name
+        .replaceFirst(/\.f(ast)?q\.gz$/, '')
+        .replaceFirst(/\.bam$/, '')
+        .replaceFirst(/\.cram$/, '')
+        .replaceFirst(/\.vcf\.gz$/, '')
+    return name.replaceAll(/[^A-Za-z0-9_.-]/, '_')
 }
 
 //

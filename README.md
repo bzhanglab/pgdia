@@ -54,7 +54,15 @@ Column notes:
 | `cram`, `crai` | Conditional | CRAM and CRAI if starting from CRAM instead of BAM. |
 | `dia_raw` | Yes | DIA-MS raw path for the sample, for example a timsTOF `.d` directory or vendor raw file. |
 | `strandedness` | Yes | Passed to StringTie. Supported values are `forward`, `reverse`, and `unstranded`. |
+| `tissue` | No | Explicit tissue label for protein headers and provenance; overrides sample-name inference. |
 
+When `tissue` is omitted or blank, names such as `Cyno_Plex2_127N_Pancreas`
+resolve to `Pancreas`. Any numeric plex number and optional letters after the
+sample number are supported, including multiword tissues such as `GI_Ileum`.
+Other naming formats use the original sample identifier; add a `tissue` column
+to specify their biological tissue. Spaces in tissue labels become underscores.
+Novel isoforms assembled from multiple tissues receive `Tissue=pooled` because
+the merged assembly does not identify each isoform's tissue of origin.
 
 ### Required reference and workflow parameters
 
@@ -70,6 +78,14 @@ For the RNA variant branch:
 
 - provide `--dbsnp` and/or `--known_indels` if you want base recalibration
 - otherwise set `--skip_baserecalibration`
+
+Protein FASTA species labels (`OS` and `OX`) come from the selected genome:
+the bundled human references use `Homo sapiens` / `9606`, and mouse references
+use `Mus musculus` / `10090`. For custom references, set both `--organism` and
+`--taxonomy_id`, or define `organism` and `taxonomy_id` in the genome configuration.
+For example, a macaque reference uses `--organism 'Macaca fascicularis' --taxonomy_id 9541`.
+Explicit parameter values override the genome metadata. Both standalone Python
+header scripts also require `--organism` and `--taxonomy-id`.
 
 ## Quick start
 

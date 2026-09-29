@@ -74,6 +74,7 @@ process RUN_DIANN {
   cpus params.diann_cpus
 
   publishDir { "${params.outdir}/diann_output/${meta.id}" }, mode: 'copy', overwrite: true
+  container { diann_image_name }
 
   input:
     val(diann_image_name)
@@ -83,8 +84,6 @@ process RUN_DIANN {
     tuple val(meta), path("${meta.id}_report.parquet"), emit: diann_report
     path("${meta.id}_lib.parquet"), optional: true
     path("${meta.id}_matrices.parquet"), optional: true
-
-  container { diann_image_name }
 
   script:
     """

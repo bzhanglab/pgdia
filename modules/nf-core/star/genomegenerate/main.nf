@@ -10,6 +10,7 @@ process STAR_GENOMEGENERATE {
     input:
     tuple val(meta), path(fasta)
     tuple val(meta2), path(gtf)
+    val read_length
 
     output:
     tuple val(meta), path("star")  , emit: index
@@ -23,6 +24,7 @@ process STAR_GENOMEGENERATE {
     def args_list   = args.tokenize()
     def memory      = task.memory ? "--limitGenomeGenerateRAM ${task.memory.toBytes() - 100000000}" : ''
     def include_gtf = gtf ? "--sjdbGTFfile $gtf" : ''
+    def read_length_arg = read_length ? "--sjdbOverhang ${read_length - 1}" : ''
     if (args_list.contains('--genomeSAindexNbases')) {
         """
         mkdir star
@@ -31,6 +33,7 @@ process STAR_GENOMEGENERATE {
             --genomeDir star/ \\
             --genomeFastaFiles $fasta \\
             $include_gtf \\
+            $read_length_arg \\
             --runThreadN $task.cpus \\
             $memory \\
             $args
@@ -53,6 +56,7 @@ process STAR_GENOMEGENERATE {
             --genomeDir star/ \\
             --genomeFastaFiles $fasta \\
             $include_gtf \\
+            $read_length_arg \\
             --runThreadN $task.cpus \\
             --genomeSAindexNbases \$NUM_BASES \\
             $memory \\

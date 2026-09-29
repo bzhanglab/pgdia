@@ -31,6 +31,7 @@ workflow PREPARE_GENOME {
     known_indels_tbi // channel: [/path/to/known_indels_index]
     feature_type
     align               // The pipeline needs aligner indices or not
+    read_length         // detected cohort maximum read length
 
     main:
     def ch_versions = Channel.empty()
@@ -178,18 +179,28 @@ workflow PREPARE_GENOME {
     def star_index_check = star_index_input.index
         .mix(UNTAR.out.untar)
         .combine(STAR_INDEXVERSION.out.index_version)
-        .branch { meta, index, version_file ->
+        .combine(read_length)
+        .branch { meta, index, version_file, detected_read_length ->
             def is_compatible = true
             if(!workflow.stubRun) {
                 def minimal_version = version_file.text.replace("\n", "")
-                def index_version = index.resolve("genomeParameters.txt")
-                    .text
-                    .readLines()
+                def index_parameters = index.resolve("genomeParameters.txt").text.readLines()
+                def index_version = index_parameters
                     .find { line -> line.startsWith("versionGenome") }
                     .tokenize("\t")[-1]
                 is_compatible = isCompatibleStarIndex(index_version, minimal_version)
                 if(!is_compatible) {
                     log.warn("Detected a wrong version of the STAR index, expected a minimum version of ${minimal_version}. Automatically recreating the index of STAR...")
+                }
+
+                if (is_compatible && detected_read_length) {
+                    def overhang_line = index_parameters.find { line -> line.trim().startsWith("sjdbOverhang") }
+                    def index_overhang = overhang_line ? overhang_line.tokenize()[-1].toInteger() : null
+                    def expected_overhang = detected_read_length - 1
+                    is_compatible = index_overhang == expected_overhang
+                    if (!is_compatible) {
+                        log.warn("STAR index sjdbOverhang is ${index_overhang}; expected ${expected_overhang} for ${detected_read_length}-bp reads. Automatically recreating the STAR index...")
+                    }
                 }
             }
             compatible: is_compatible
@@ -205,7 +216,7 @@ workflow PREPARE_GENOME {
             [ meta2, fasta ]
         }
 
-    STAR_GENOMEGENERATE(genomegenerate_input, ch_gtf)
+    STAR_GENOMEGENERATE(genomegenerate_input, ch_gtf, read_length)
     ch_versions = ch_versions.mix(STAR_GENOMEGENERATE.out.versions)
 
     star_index_output = STAR_GENOMEGENERATE.out.index

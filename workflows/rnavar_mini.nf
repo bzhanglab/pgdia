@@ -75,6 +75,7 @@ workflow RNAVAR_MINI {
     vep_extra_files
     seq_center
     seq_platform
+    read_length
 
     main:
 
@@ -92,9 +93,9 @@ workflow RNAVAR_MINI {
             // inject dia_raw into meta 
             def meta2 = meta + [ dia_raw: dia_raw ]
 
-            single   : fq && fq.size() == 1
+            direct   : fq && ((meta2.single_end && fq.size() == 1) || (!meta2.single_end && fq.size() == 2))
             return [meta2, fq.flatten()]
-            multiple : fq && fq.size() > 1
+            concat   : fq && ((meta2.single_end && fq.size() > 1) || (!meta2.single_end && fq.size() > 2))
             return [meta2, fq.flatten()]
             bam      : bam
             return [meta2, bam, bai]
@@ -113,9 +114,9 @@ workflow RNAVAR_MINI {
     ch_versions = ch_versions.mix(PREPARE_ALIGNMENT.out.versions)
 
     // MODULE: Concatenate FastQ files from same sample if required
-    CAT_FASTQ(parsed_input.multiple)
+    CAT_FASTQ(parsed_input.concat)
 
-    def cat_fastq = CAT_FASTQ.out.reads.mix(parsed_input.single)
+    def cat_fastq = CAT_FASTQ.out.reads.mix(parsed_input.direct)
 
     ch_versions = ch_versions.mix(CAT_FASTQ.out.versions)
 
@@ -138,6 +139,14 @@ workflow RNAVAR_MINI {
     } else {
         umi_extracted_reads = cat_fastq
     }
+
+    // Attach the checked cohort read length to metadata so STAR process
+    // configuration can use it when constructing --sjdbOverhang.
+    def checked_reads = umi_extracted_reads
+        .combine(read_length)
+        .map { meta, reads, detected_length ->
+            tuple(meta + [read_length: detected_length], reads)
+        }
 
 
     //
@@ -171,7 +180,7 @@ workflow RNAVAR_MINI {
 
     if (params.aligner == 'star') {
         FASTQ_ALIGN_STAR(
-            umi_extracted_reads,
+            checked_reads,
             star_index,
             gtf,
             params.star_ignore_sjdbgtf,
@@ -414,6 +423,8 @@ workflow RNAVAR_MINI {
                 
 
                 
+            } else {
+                annotated_vcf_ch = final_vcf
             }
 
         } else {

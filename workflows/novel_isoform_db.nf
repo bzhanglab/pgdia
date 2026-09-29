@@ -1,4 +1,5 @@
 nextflow.enable.dsl=2
+include { sampleTissue } from './tissue_metadata'
 
  include { GFFCOMPARE } from '../modules/nf-core/gffcompare/main'
  include { GFFREAD } from '../modules/nf-core/gffread/main' 
@@ -96,6 +97,34 @@ process TRANSDECODER_LONGORFS_PREDICT {
     """
 }
 
+process REFORMAT_NOVEL_PROTEIN_HEADERS {
+  tag "${meta.id}"
+
+  conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
+  container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/python:3.8.3' :
+        'quay.io/biocontainers/python:3.8.3' }"
+
+  input:
+    tuple val(meta), path(novel_pep)
+
+  output:
+    tuple val(meta), path("${meta.id}.uniprot_headers.pep.fasta"), emit: pep_fasta
+
+  script:
+    def tissue = sampleTissue(meta)
+    """
+    set -euo pipefail
+    python3 ${projectDir}/bin/reformat_novel_protein_headers.py \\
+      --input "${novel_pep}" \\
+      --output "${meta.id}.uniprot_headers.pep.fasta" \\
+      --sample-id "${meta.id}" \\
+      --tissue "${tissue}" \\
+      --organism "${params.organism}" \\
+      --taxonomy-id "${params.taxonomy_id}"
+    """
+}
+
 
 workflow GENERATE_NOVEL_ISOFORM_DB {
 
@@ -161,8 +190,9 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
 
     // 9) TransDecoder.LongOrfs TransDecoder.Predict
     def predict_pep_ch =  TRANSDECODER_LONGORFS_PREDICT(novel_fasta_by_id_ch).pep_fasta
+    def formatted_pep_ch = REFORMAT_NOVEL_PROTEIN_HEADERS(predict_pep_ch).pep_fasta
 
   emit:
-    isoform_db = predict_pep_ch
+    isoform_db = formatted_pep_ch
     isoform_tmap = tmap_ch
 }

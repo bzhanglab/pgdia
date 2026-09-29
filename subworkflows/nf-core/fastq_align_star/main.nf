@@ -1,5 +1,6 @@
 include { STAR_ALIGN                                                       } from '../../../modules/nf-core/star/align/main'
-include { BAM_SORT_STATS_SAMTOOLS as BAM_SORT_STATS_SAMTOOLS_GENOME        } from '../bam_sort_stats_samtools/main'
+include { SAMTOOLS_INDEX                                                    } from '../../../modules/nf-core/samtools/index/main'
+include { BAM_STATS_SAMTOOLS as BAM_STATS_SAMTOOLS_GENOME                  } from '../bam_stats_samtools/main'
 include { BAM_SORT_STATS_SAMTOOLS as BAM_SORT_STATS_SAMTOOLS_TRANSCRIPTOME } from '../bam_sort_stats_samtools/main'
 
 
@@ -26,10 +27,27 @@ workflow FASTQ_ALIGN_STAR {
     ch_versions = ch_versions.mix(STAR_ALIGN.out.versions.first())
 
     //
-    // Sort, index BAM file and run samtools stats, flagstat and idxstats
+    // STAR already created a coordinate-sorted genome BAM. Index it directly,
+    // then run samtools stats, flagstat and idxstats without sorting it again.
     //
-    BAM_SORT_STATS_SAMTOOLS_GENOME ( STAR_ALIGN.out.bam, ch_fasta )
-    ch_versions = ch_versions.mix(BAM_SORT_STATS_SAMTOOLS_GENOME.out.versions)
+    SAMTOOLS_INDEX ( STAR_ALIGN.out.bam_sorted_aligned )
+    ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions)
+
+    STAR_ALIGN.out.bam_sorted_aligned
+        .join(SAMTOOLS_INDEX.out.bai, by: [0], remainder: true)
+        .join(SAMTOOLS_INDEX.out.csi, by: [0], remainder: true)
+        .map {
+            meta, bam, bai, csi ->
+                if (bai) {
+                    [ meta, bam, bai ]
+                } else {
+                    [ meta, bam, csi ]
+                }
+        }
+        .set { ch_genome_bam_bai }
+
+    BAM_STATS_SAMTOOLS_GENOME ( ch_genome_bam_bai, ch_fasta )
+    ch_versions = ch_versions.mix(BAM_STATS_SAMTOOLS_GENOME.out.versions)
 
     //
     // Sort, index BAM file and run samtools stats, flagstat and idxstats
@@ -43,20 +61,20 @@ workflow FASTQ_ALIGN_STAR {
 
     emit:
 
-    orig_bam            = STAR_ALIGN.out.bam                                 // channel: [ val(meta), path(bam)            ]
+    orig_bam            = STAR_ALIGN.out.bam_sorted_aligned                  // channel: [ val(meta), path(bam)            ]
     log_final           = STAR_ALIGN.out.log_final                           // channel: [ val(meta), path(log_final)      ]
     log_out             = STAR_ALIGN.out.log_out                             // channel: [ val(meta), path(log_out)        ]
     log_progress        = STAR_ALIGN.out.log_progress                        // channel: [ val(meta), path(log_progress)   ]
-    bam_sorted          = STAR_ALIGN.out.bam_sorted                          // channel: [ val(meta), path(bam)            ]
+    bam_sorted          = STAR_ALIGN.out.bam_sorted_aligned                  // channel: [ val(meta), path(bam)            ]
     fastq               = STAR_ALIGN.out.fastq                               // channel: [ val(meta), path(fastq)          ]
     tab                 = STAR_ALIGN.out.tab                                 // channel: [ val(meta), path(tab)            ]
     orig_bam_transcript = STAR_ALIGN.out.bam_transcript                      // channel: [ val(meta), path(bam)            ]
 
-    bam                 = BAM_SORT_STATS_SAMTOOLS_GENOME.out.bam             // channel: [ val(meta), path(bam) ]
-    bai                 = BAM_SORT_STATS_SAMTOOLS_GENOME.out.bai             // channel: [ val(meta), path(bai) ]
-    stats               = BAM_SORT_STATS_SAMTOOLS_GENOME.out.stats           // channel: [ val(meta), path(stats) ]
-    flagstat            = BAM_SORT_STATS_SAMTOOLS_GENOME.out.flagstat        // channel: [ val(meta), path(flagstat) ]
-    idxstats            = BAM_SORT_STATS_SAMTOOLS_GENOME.out.idxstats        // channel: [ val(meta), path(idxstats) ]
+    bam                 = STAR_ALIGN.out.bam_sorted_aligned                  // channel: [ val(meta), path(bam) ]
+    bai                 = SAMTOOLS_INDEX.out.bai                             // channel: [ val(meta), path(bai) ]
+    stats               = BAM_STATS_SAMTOOLS_GENOME.out.stats                // channel: [ val(meta), path(stats) ]
+    flagstat            = BAM_STATS_SAMTOOLS_GENOME.out.flagstat             // channel: [ val(meta), path(flagstat) ]
+    idxstats            = BAM_STATS_SAMTOOLS_GENOME.out.idxstats             // channel: [ val(meta), path(idxstats) ]
 
     bam_transcript      = BAM_SORT_STATS_SAMTOOLS_TRANSCRIPTOME.out.bam      // channel: [ val(meta), path(bam) ]
     bai_transcript      = BAM_SORT_STATS_SAMTOOLS_TRANSCRIPTOME.out.bai      // channel: [ val(meta), path(bai) ]

@@ -17,7 +17,9 @@ params.dbsnp             = getGenomeAttribute('dbsnp')
 params.dbsnp_tbi         = getGenomeAttribute('dbsnp_tbi')
 params.known_indels      = getGenomeAttribute('known_indels')
 params.known_indels_tbi  = getGenomeAttribute('known_indels_tbi')
-params.snpeff_db         = getGenomeAttribute('snpeff_db')
+params.snpeff_db         = getGenomeAttribute('snpeff_db') ?: params.snpeff_db
+params.snpeff_genome_name = getGenomeAttribute('snpeff_genome_name') ?: params.snpeff_genome_name ?: params.snpeff_db
+params.vep_cache         = getGenomeAttribute('vep_cache') ?: params.vep_cache
 params.vep_cache_version = getGenomeAttribute('vep_cache_version')
 params.vep_genome        = getGenomeAttribute('vep_genome')
 params.vep_species       = getGenomeAttribute('vep_species')
@@ -34,7 +36,102 @@ include { RUN_STRINGTIE } from './workflows/stringtie/stringtie'
 include { GENERATE_VARIANT_DB         } from './workflows/variant_db'
 include { GENERATE_NOVEL_ISOFORM_DB   } from './workflows/novel_isoform_db'
 include { COMBINE_PROTEIN_DBS         } from './workflows/combine_db'
-include { DIANN_PIPELINE              } from './workflows/diann_pipeline'
+
+
+process BUILD_SNPEFF_REFSEQ_CACHE {
+    tag "$snpeff_db"
+    label 'process_high_memory'
+
+    conda "${projectDir}/modules/nf-core/snpeff/snpeff/environment.yml"
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/snpeff:5.1--hdfd78af_2' :
+        'biocontainers/snpeff:5.1--hdfd78af_2' }"
+
+    input:
+    tuple val(fasta_meta), path(fasta)
+    tuple val(gtf_meta), path(gtf)
+    val snpeff_db
+    val genome_name
+
+    output:
+    tuple val([ id: snpeff_db ]), path("snpeff_cache"), emit: cache
+    path "versions.yml", emit: versions
+
+    script:
+    def avail_mem = task.memory ? (task.memory.mega * 0.8).intValue() : 6144
+    """
+    set -euo pipefail
+
+    mkdir -p "snpeff_cache/${snpeff_db}"
+    cp -L "${fasta}" "snpeff_cache/${snpeff_db}/sequences.fa"
+    cp -L "${gtf}" "snpeff_cache/${snpeff_db}/genes.gtf"
+
+    cat > snpeff_cache/snpEff.config <<-END_SNPEFF_CONFIG
+    data.dir = \${PWD}/snpeff_cache
+    ${snpeff_db}.genome : ${genome_name}
+    END_SNPEFF_CONFIG
+
+    SNPEFF_JAR="\$(find /usr/local/share /opt/conda/share -path '*/snpEff.jar' -print -quit)"
+    if [[ -z "\${SNPEFF_JAR}" ]]; then
+        echo "Could not locate snpEff.jar" >&2
+        exit 1
+    fi
+
+    java \\
+        -Xmx${avail_mem}M \\
+        -jar "\${SNPEFF_JAR}" \\
+        build \\
+        -c "\${PWD}/snpeff_cache/snpEff.config" \\
+        -dataDir "\${PWD}/snpeff_cache" \\
+        -gtf22 \\
+        -noCheckCds \\
+        -noCheckProtein \\
+        -v \\
+        -noLog \\
+        "${snpeff_db}"
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        snpeff: \$(echo \$(java -jar "\${SNPEFF_JAR}" -version 2>&1) | cut -f 2 -d ' ')
+    END_VERSIONS
+    """
+}
+
+process CHECK_READ_LENGTH {
+    tag "$meta.id"
+    label 'process_low'
+
+    conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/python:3.8.3' :
+        'quay.io/biocontainers/python:3.8.3' }"
+
+    input:
+    tuple val(meta), path(reads, stageAs: 'reads/*')
+
+    output:
+    tuple val(meta), path("${meta.id}.read_length.txt"), path("${meta.id}.read_length.tsv"), emit: result
+    path "versions.yml", emit: versions
+
+    script:
+    def expected_arg = params.read_length ? "--expected-length ${params.read_length}" : ''
+    def read_inputs = reads instanceof List ? reads.join(' ') : reads
+    """
+    set -euo pipefail
+
+    python3 ${projectDir}/bin/check_read_length.py \\
+      --max-reads ${params.read_length_check_reads} \\
+      ${expected_arg} \\
+      --length-output "${meta.id}.read_length.txt" \\
+      --report "${meta.id}.read_length.tsv" \\
+      ${read_inputs}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: \$(python3 --version 2>&1 | awk '{print \$2}')
+    END_VERSIONS
+    """
+}
 
 
 
@@ -45,6 +142,32 @@ workflow NFCORE_RNAVAR {
 
   main:
     ch_versions = Channel.empty()
+
+    // Inspect the first available FASTQ before STAR. Its observed read length
+    // is used for the cohort STAR index and every alignment. If --read_length
+    // is supplied, CHECK_READ_LENGTH also verifies it against this FASTQ.
+    def ch_read_length_input = samplesheet
+      .map { row_id, meta, fastq_1, fastq_2, bam, bai, cram, crai, vcf, tbi, dia_raw ->
+        tuple(meta, [fastq_1].findAll { it })
+      }
+      .filter { meta, reads -> !reads.isEmpty() }
+      .first()
+
+    CHECK_READ_LENGTH(ch_read_length_input)
+    ch_versions = ch_versions.mix(CHECK_READ_LENGTH.out.versions)
+
+    def ch_read_length = CHECK_READ_LENGTH.out.result
+      .map { meta, length_file, report -> length_file }
+      .collect()
+      .map { length_files ->
+        if (!length_files) {
+          return params.read_length ?: 0
+        }
+        def lengths = length_files.collect { it.text.trim().toInteger() }
+        def detected = lengths.max()
+        log.info("Detected FASTQ read length: ${detected} bp (checked the first fastq_1 entry in the input samplesheet)")
+        return detected
+      }
 
     /*
      * Basic parameter checks (keep only what RNAVAR really needs)
@@ -118,7 +241,8 @@ workflow NFCORE_RNAVAR {
       ch_known_indels_raw,
       ch_known_indels_tbi_raw,
       params.feature_type,
-      align
+      align,
+      ch_read_length
     )
 
     ch_fasta            = PREPARE_GENOME.out.fasta
@@ -144,9 +268,38 @@ workflow NFCORE_RNAVAR {
     def snpeff_cache = Channel.empty()
     def vep_cache    = Channel.empty()
 
-    if (params.download_cache) {
+    def snpeff_requested = params.tools && (params.tools.split(',').contains("snpeff") || params.tools.split(',').contains('merge'))
+    def selected_genome_attrs = (params.genomes && params.genome && params.genomes.containsKey(params.genome)) ? params.genomes[params.genome] : [:]
+    def snpeff_db_value = params.snpeff_db ?: selected_genome_attrs.snpeff_db
+    def snpeff_genome_name_value = params.snpeff_genome_name ?: selected_genome_attrs.snpeff_genome_name ?: snpeff_db_value
+
+    if (params.build_snpeff_refseq_cache && !params.skip_variantannotation && snpeff_requested) {
+      if (!snpeff_db_value) {
+        error("Missing required parameter for local snpEff cache build: --snpeff_db")
+      }
+      if (!params.gtf) {
+        error("Missing required parameter for local snpEff cache build: --gtf or genome GTF")
+      }
+      if (!params.fasta) {
+        error("Missing required parameter for local snpEff cache build: --fasta or genome FASTA")
+      }
+
+      def snpeff_fasta_for_build = Channel.value(tuple([ id: 'snpeff_fasta' ], file(params.fasta, checkIfExists: true)))
+      def snpeff_gtf_for_build   = Channel.value(tuple([ id: 'snpeff_gtf' ], file(params.gtf, checkIfExists: true)))
+
+      BUILD_SNPEFF_REFSEQ_CACHE(
+        snpeff_fasta_for_build,
+        snpeff_gtf_for_build,
+        snpeff_db_value,
+        snpeff_genome_name_value
+      )
+
+      snpeff_cache = BUILD_SNPEFF_REFSEQ_CACHE.out.cache.first()
+      ch_versions  = ch_versions.mix(BUILD_SNPEFF_REFSEQ_CACHE.out.versions)
+
+    } else if (params.download_cache && !params.skip_variantannotation) {
       ensemblvep_info = Channel.of([ [ id: "${params.vep_cache_version}_${params.vep_genome}" ], params.vep_genome, params.vep_species, params.vep_cache_version ])
-      snpeff_info     = Channel.of([ [ id: "${params.snpeff_db}" ], params.snpeff_db ])
+      snpeff_info     = Channel.of([ [ id: "${snpeff_db_value}" ], snpeff_db_value ])
 
       DOWNLOAD_CACHE_SNPEFF_VEP(ensemblvep_info, snpeff_info)
 
@@ -157,10 +310,10 @@ workflow NFCORE_RNAVAR {
     } else {
         // Looks for cache information either locally or on the cloud
         ANNOTATION_CACHE_INITIALISATION(
-            (params.snpeff_cache && params.tools && (params.tools.split(',').contains("snpeff") || params.tools.split(',').contains('merge'))),
+            (!params.skip_variantannotation && params.snpeff_cache && params.tools && (params.tools.split(',').contains("snpeff") || params.tools.split(',').contains('merge'))),
             params.snpeff_cache,
-            params.snpeff_db,
-            (params.vep_cache && params.tools && (params.tools.split(',').contains("vep") || params.tools.split(',').contains('merge'))),
+            snpeff_db_value,
+            (!params.skip_variantannotation && params.vep_cache && params.tools && (params.tools.split(',').contains("vep") || params.tools.split(',').contains('merge'))),
             params.vep_cache,
             params.vep_species,
             params.vep_cache_version,
@@ -189,7 +342,7 @@ workflow NFCORE_RNAVAR {
       ch_known_indels_tbi,
       ch_star_index,
       snpeff_cache,
-      params.snpeff_db,
+      snpeff_db_value,
       params.vep_genome,
       params.vep_species,
       params.vep_cache_version,
@@ -197,7 +350,8 @@ workflow NFCORE_RNAVAR {
       vep_cache,
       vep_extra_files,
       seq_center,
-      seq_platform
+      seq_platform,
+      ch_read_length
     )
 
     ch_versions = ch_versions.mix(RNAVAR_MINI.out.versions)
@@ -237,7 +391,7 @@ workflow PGDIA {
       GENERATE_VARIANT_DB(ch_vcf_for_var)
 
       variant_fasta = GENERATE_VARIANT_DB.out.variant_db
-          .map { meta, fa -> tuple(meta, fa) }                // tuple(val(meta), var_modified_peptides.fa)
+          .map { meta, fa -> tuple(meta, fa) }                // tuple(val(meta), var_modified_peptides.compact.fa)
       
 
       // 2. StringTie on markdup BAMs from RNAVAR
@@ -259,23 +413,13 @@ workflow PGDIA {
       //isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
 
 
-      def isoform_norm = isoform_fasta.map { meta, pep ->
-        tuple(meta.subMap(['id','single_end','dia_raw']), pep)
-      }
-      def isoform_tmap_norm = isoform_tmap.map { meta, tmap ->
-        tuple(meta.subMap(['id','single_end','dia_raw']), tmap)
-      }
-
-      def variant_norm = variant_fasta.map { meta, var_fa ->
-        tuple(meta.subMap(['id','single_end','dia_raw']), var_fa)
-      }
-
-
       // Step 3: Combine protein DBs
-      combine_in_ch = variant_norm
-          .join(isoform_norm, by: 0, failOnMismatch: true)
-          .map { meta, var_fa, novel_fa ->
-              tuple(meta, var_fa, novel_fa)
+      // StringTie is run once on the merged RNA-seq BAM, so reuse the single
+      // novel isoform DB for each per-sample variant peptide DB.
+      combine_in_ch = variant_fasta
+          .combine(isoform_fasta)
+          .map { variant_meta, var_fa, isoform_meta, novel_fa ->
+              tuple(variant_meta.subMap(['id','dia_raw']), var_fa, novel_fa)
           }
       
       def ch_protein_ref = Channel.value(
@@ -287,37 +431,10 @@ workflow PGDIA {
       def combined_db_ch = dbs.combined_db
       def novel_db_ch = dbs.novel_db
 
-      def combined_db_norm = combined_db_ch.map { meta, protein_db ->
-        tuple(meta.subMap(['id','single_end','dia_raw']), protein_db)
-      }
-
-      def novel_db_norm = novel_db_ch.map { meta, novel_db ->
-        tuple(meta.subMap(['id','single_end','dia_raw']), novel_db)
-      }
-
-      def diann_input_ch = combined_db_norm
-        .join(novel_db_norm, by: 0, failOnMismatch: true)
-        .join(isoform_tmap_norm, by: 0, failOnMismatch: true)
-        .map { meta, protein_db, novel_db, iso_tmap ->
-          tuple(
-            meta,
-            protein_db,
-            file(meta.dia_raw),
-            novel_db,
-            iso_tmap
-          )
-        }
-
-      def diann_results = DIANN_PIPELINE(diann_input_ch)
-      def diann_out_ch = diann_results.diann_out
-      def diann_postprocessed_novel_ch = diann_results.diann_postprocessed_novel
-      def diann_postprocessed_ref_ch = diann_results.diann_postprocessed_ref
-
-
     emit:
-      diann_report = diann_out_ch
-      diann_postprocessed_novel_report = diann_postprocessed_novel_ch
-      diann_postprocessed_ref_report = diann_postprocessed_ref_ch
+      combined_db = combined_db_ch
+      novel_db = novel_db_ch
+      isoform_tmap = isoform_tmap
 }
 
 workflow {

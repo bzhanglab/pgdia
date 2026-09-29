@@ -40,6 +40,11 @@
                     "type": "string",
                     "description": "MultiQC report title. Printed as page header, used for filename if not otherwise specified.",
                     "fa_icon": "fas fa-file-signature"
+                },
+                "save_merged_fastq": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Publish FASTQs produced by concatenating multiple lanes."
                 }
             }
         },
@@ -74,6 +79,90 @@
                     "description": "Path to gene annotation GTF used by StringTie / downstream steps.",
                     "fa_icon": "far fa-file-code"
                 },
+                "protein_reference_db": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Reference protein FASTA combined with cohort variant and novel-isoform proteins."
+                },
+                "organism": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "description": "Organism name for protein FASTA OS labels. Defaults to organism in the selected genome configuration; required for custom references without species metadata."
+                },
+                "taxonomy_id": {
+                    "type": ["string", "integer", "null"],
+                    "pattern": "^[1-9][0-9]*$",
+                    "minimum": 1,
+                    "description": "NCBI taxonomy ID for protein FASTA OX labels. Defaults to taxonomy_id in the selected genome configuration."
+                },
+                "fasta_fai": {
+                    "type": ["string", "null"],
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "FASTA index corresponding to the reference genome."
+                },
+                "dict": {
+                    "type": ["string", "null"],
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Sequence dictionary corresponding to the reference genome."
+                },
+                "gff": {
+                    "type": ["string", "null"],
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Optional GFF annotation used instead of GTF."
+                },
+                "exon_bed": {
+                    "type": ["string", "null"],
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Optional pre-generated exon BED."
+                },
+                "star_index": {
+                    "type": ["string", "null"],
+                    "format": "directory-path",
+                    "description": "Optional pre-generated STAR index directory."
+                },
+                "dbsnp": {
+                    "type": ["string", "null"],
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Known-sites VCF used by BQSR and variant calling."
+                },
+                "dbsnp_tbi": {
+                    "type": ["string", "null"],
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Tabix index for the dbSNP/known-sites VCF."
+                },
+                "known_indels": {
+                    "type": ["string", "null"],
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Optional known-indels VCF used by BQSR."
+                },
+                "known_indels_tbi": {
+                    "type": ["string", "null"],
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Tabix index for the known-indels VCF."
+                },
+                "save_reference": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Publish generated reference files and indices."
+                },
+                "igenomes_all_base": {
+                    "type": ["string", "null"],
+                    "description": "Base location for the custom GENCODE reference bundle."
+                },
+                "genomes": {
+                    "type": ["object", "null"],
+                    "additionalProperties": true,
+                    "description": "Configured reference genome bundles."
+                },
                 "igenomes_ignore": {
                     "type": "boolean",
                     "description": "Do not load the iGenomes reference config.",
@@ -96,6 +185,332 @@
                     "fa_icon": "fas fa-list"
                 }
 
+            }
+        },
+        "alignment_options": {
+            "title": "Alignment options",
+            "type": "object",
+            "fa_icon": "fas fa-align-left",
+            "description": "Options controlling RNA-seq read checks and STAR alignment.",
+            "properties": {
+                "read_length": {
+                    "type": ["integer", "null"],
+                    "minimum": 1,
+                    "description": "Expected FASTQ read length. When omitted, it is detected from the first fastq_1 entry in the input samplesheet. When supplied, the pre-STAR check fails if it does not match that FASTQ."
+                },
+                "read_length_check_reads": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 10000,
+                    "description": "Number of records sampled from the first input FASTQ when detecting read length before STAR."
+                },
+                "aligner": {
+                    "type": "string",
+                    "enum": ["star"],
+                    "default": "star",
+                    "description": "RNA-seq aligner."
+                },
+                "star_twopass": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable STAR two-pass alignment."
+                },
+                "star_ignore_sjdbgtf": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Do not add splice junctions from the GTF during STAR alignment."
+                },
+                "star_max_memory_bamsort": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "STAR limitBAMsortRAM value; zero uses STAR's default."
+                },
+                "star_bins_bamsort": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "STAR outBAMsortingBinsN value."
+                },
+                "star_max_collapsed_junc": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "STAR limitOutSJcollapsed value."
+                },
+                "star_max_intron_size": {
+                    "type": ["integer", "null"],
+                    "minimum": 1,
+                    "description": "Maximum STAR intron length."
+                },
+                "seq_center": {
+                    "type": ["string", "null"],
+                    "description": "Sequencing center stored in BAM read groups."
+                },
+                "seq_platform": {
+                    "type": ["string", "null"],
+                    "description": "Sequencing platform stored in BAM read groups."
+                },
+                "bam_csi_index": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Create CSI rather than BAI indices."
+                },
+                "save_unaligned": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Publish unaligned reads emitted by STAR."
+                },
+                "save_align_intermeds": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Publish intermediate aligned BAMs and indices."
+                },
+                "remove_duplicates": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Remove rather than only mark duplicate reads."
+                },
+                "extract_umi": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Extract UMIs before alignment."
+                },
+                "umitools_extract_method": {
+                    "type": "string",
+                    "default": "string",
+                    "description": "UMI-tools extraction method."
+                },
+                "umitools_bc_pattern": {
+                    "type": ["string", "null"],
+                    "description": "UMI-tools barcode pattern for read 1."
+                },
+                "umitools_bc_pattern2": {
+                    "type": ["string", "null"],
+                    "description": "UMI-tools barcode pattern for read 2."
+                },
+                "umitools_umi_separator": {
+                    "type": ["string", "null"],
+                    "description": "Separator placed before the extracted UMI in read names."
+                }
+            }
+        },
+        "variant_database_options": {
+            "title": "Variant database options",
+            "type": "object",
+            "fa_icon": "fas fa-database",
+            "description": "Options controlling cohort-level variant peptide database generation.",
+            "properties": {
+                "variant_peptide_require_pass": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Use only variants whose VCF FILTER value is PASS when generating variant peptides."
+                },
+                "variant_peptide_min_runs": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 5,
+                    "description": "Minimum number of RNA-seq runs supporting a variant peptide sequence."
+                },
+                "cohort_db_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "default": "all_rnaseq_runs",
+                    "description": "Identifier used for the cohort-level variant peptide database."
+                },
+                "cohort_expected_runs": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 27,
+                    "description": "Exact number of unique run-level variant FASTAs required before cohort database generation."
+                }
+            }
+        },
+        "variant_calling_annotation_options": {
+            "title": "Variant calling and annotation options",
+            "type": "object",
+            "fa_icon": "fas fa-dna",
+            "description": "Options controlling RNA-aware variant calling, filtering and annotation.",
+            "properties": {
+                "tools": {
+                    "type": "string",
+                    "enum": ["none", "snpeff", "vep", "merge"],
+                    "description": "Variant annotation tool or tool combination."
+                },
+                "no_intervals": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Disable interval-restricted processing where supported."
+                },
+                "skip_baserecalibration": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip GATK base-quality score recalibration."
+                },
+                "skip_intervallisttools": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Do not scatter the interval list."
+                },
+                "skip_variantfiltration": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip hard filtering of called variants."
+                },
+                "skip_variantannotation": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip variant annotation."
+                },
+                "skip_exon_bed_check": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip filtering exon intervals against reference contigs."
+                },
+                "gatk_interval_scatter_count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 25,
+                    "description": "Number of GATK interval shards per RNA-seq run."
+                },
+                "gatk_hc_call_conf": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 20,
+                    "description": "HaplotypeCaller minimum calling confidence."
+                },
+                "generate_gvcf": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Generate GVCF rather than per-run VCF output."
+                },
+                "gatk_vf_window_size": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 35,
+                    "description": "VariantFiltration cluster window size."
+                },
+                "gatk_vf_cluster_size": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 3,
+                    "description": "VariantFiltration cluster size."
+                },
+                "gatk_vf_fs_filter": {
+                    "type": "number",
+                    "default": 30,
+                    "description": "Fisher strand-bias filtering threshold."
+                },
+                "gatk_vf_qd_filter": {
+                    "type": "number",
+                    "default": 2,
+                    "description": "Quality-by-depth filtering threshold."
+                },
+                "build_snpeff_refseq_cache": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Build a local snpEff database from the selected FASTA and GTF."
+                },
+                "download_cache": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Download annotation caches rather than using configured resources."
+                },
+                "use_annotation_cache_keys": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Use cloud annotation cache keys."
+                },
+                "snpeff_cache": {
+                    "type": ["string", "null"],
+                    "description": "snpEff cache location."
+                },
+                "snpeff_db": {
+                    "type": ["string", "null"],
+                    "description": "snpEff database identifier."
+                },
+                "snpeff_genome_name": {
+                    "type": ["string", "null"],
+                    "description": "Display name used when building a local snpEff database."
+                },
+                "vep_cache": {
+                    "type": ["string", "null"],
+                    "description": "VEP cache location."
+                },
+                "vep_cache_version": {
+                    "type": ["integer", "null"],
+                    "description": "VEP cache version."
+                },
+                "vep_genome": {
+                    "type": ["string", "null"],
+                    "description": "VEP genome assembly name."
+                },
+                "vep_species": {
+                    "type": ["string", "null"],
+                    "description": "VEP species name."
+                },
+                "vep_custom_args": {
+                    "type": ["string", "null"],
+                    "description": "Additional VEP arguments."
+                },
+                "vep_include_fasta": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Provide the genome FASTA to VEP."
+                },
+                "vep_out_format": {
+                    "type": ["string", "null"],
+                    "description": "VEP output format."
+                },
+                "vep_dbnsfp": {
+                    "type": ["string", "boolean", "null"],
+                    "description": "Enable or configure the VEP dbNSFP plugin."
+                },
+                "vep_loftee": {
+                    "type": ["string", "boolean", "null"],
+                    "description": "Enable or configure the VEP LoFTEE plugin."
+                },
+                "vep_spliceai": {
+                    "type": ["string", "boolean", "null"],
+                    "description": "Enable or configure the VEP SpliceAI plugin."
+                },
+                "vep_spliceregion": {
+                    "type": ["string", "boolean", "null"],
+                    "description": "Enable or configure the VEP SpliceRegion plugin."
+                },
+                "dbnsfp": {
+                    "type": ["string", "null"],
+                    "description": "dbNSFP data file."
+                },
+                "dbnsfp_tbi": {
+                    "type": ["string", "null"],
+                    "description": "Index for the dbNSFP data file."
+                },
+                "dbnsfp_consequence": {
+                    "type": ["string", "null"],
+                    "description": "Consequence restriction for dbNSFP annotations."
+                },
+                "dbnsfp_fields": {
+                    "type": ["string", "null"],
+                    "description": "Comma-separated dbNSFP fields."
+                },
+                "spliceai_snv": {
+                    "type": ["string", "null"],
+                    "description": "SpliceAI SNV resource."
+                },
+                "spliceai_snv_tbi": {
+                    "type": ["string", "null"],
+                    "description": "Index for the SpliceAI SNV resource."
+                },
+                "spliceai_indel": {
+                    "type": ["string", "null"],
+                    "description": "SpliceAI indel resource."
+                },
+                "spliceai_indel_tbi": {
+                    "type": ["string", "null"],
+                    "description": "Index for the SpliceAI indel resource."
+                },
+                "outdir_cache": {
+                    "type": ["string", "null"],
+                    "description": "Output directory for downloaded annotation caches."
+                }
             }
         },
         "institutional_config_options": {
@@ -240,6 +655,53 @@
                     "fa_icon": "far calendar",
                     "description": "Suffix to add to the trace report filename. Default is the date and time in the format yyyy-MM-dd_HH-mm-ss.",
                     "hidden": true
+                },
+                "skip_multiqc": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip MultiQC report generation."
+                },
+                "max_memory": {
+                    "type": "string",
+                    "description": "Maximum memory available to the pipeline."
+                },
+                "max_cpus": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximum CPUs available to the pipeline."
+                },
+                "max_time": {
+                    "type": "string",
+                    "description": "Maximum process wall time available to the pipeline."
+                },
+                "enable_conda": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable process Conda environments."
+                },
+                "help": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Display basic help."
+                },
+                "help_full": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Display extended help."
+                },
+                "show_hidden": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Show hidden parameters in help output."
+                },
+                "showHidden": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Compatibility alias for showing hidden parameters."
                 }
             }
         }
@@ -250,6 +712,15 @@
         },
         {
             "$ref": "#/$defs/reference_genome_options"
+        },
+        {
+            "$ref": "#/$defs/alignment_options"
+        },
+        {
+            "$ref": "#/$defs/variant_database_options"
+        },
+        {
+            "$ref": "#/$defs/variant_calling_annotation_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"

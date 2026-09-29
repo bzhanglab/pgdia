@@ -13,6 +13,17 @@
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
+            "run": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "description": "Optional RNA-seq run ID. Rows with the same sample but different run values are processed as separate variant-calling runs and regrouped for sample-level database creation.",
+                "meta": ["run"]
+            },
+            "tissue": {
+                "type": "string",
+                "description": "Optional tissue label. Overrides inference from Cyno_Plex sample names; other names fall back to the sample identifier.",
+                "meta": ["tissue"]
+            },
             "fastq_1": {
                 "type": "string",
                 "format": "file-path",
@@ -40,6 +51,12 @@
                 "exists": true,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.bai$",
                 "errorMessage": "If a BAM is supplied, provide the matching BAI index ending with '.bam.bai'"
+            },
+            "strandedness": {
+                "type": "string",
+                "enum": ["forward", "reverse", "unstranded"],
+                "description": "RNA-seq strandedness used by StringTie.",
+                "meta": ["strandedness"]
             },
             "cram": {
                 "type": "string",
@@ -77,10 +94,10 @@
             }
         },
         "oneOf": [
-            { "required": ["sample", "fastq_1", "dia_raw"] },
-            { "required": ["sample", "cram", "dia_raw"] },
-            { "required": ["sample", "vcf", "dia_raw"] },
-            { "required": ["sample", "bam", "dia_raw"] }
+            { "required": ["sample", "fastq_1"] },
+            { "required": ["sample", "cram"] },
+            { "required": ["sample", "vcf"] },
+            { "required": ["sample", "bam"] }
         ]
     }
 }
