@@ -1,0 +1,15 @@
+Changes in component 'nf-core/gatk4/intervallisttools'
+'modules/nf-core/gatk4/intervallisttools/meta.yml' is unchanged
+Changes in 'gatk4/intervallisttools/main.nf':
+--- modules/nf-core/gatk4/intervallisttools/main.nf
++++ modules/nf-core/gatk4/intervallisttools/main.nf
+@@ -1,6 +1,6 @@
+ process GATK4_INTERVALLISTTOOLS {
+     tag "$meta.id"
+-    label 'process_single'
++    label 'process_low'
+ 
+     conda "${moduleDir}/environment.yml"
+     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+
+************************************************************

@@ -1,7 +1,7 @@
 nextflow.enable.dsl=2
 
  include { GFFCOMPARE } from '../modules/nf-core/gffcompare/main'
- include { GFFREAD } from '../modules/nf-core/gffread/main' 
+ include { GFFREAD } from '../modules/nf-core/gffread/main'
 
 
 process FILTER_ISOFORMS {
@@ -38,7 +38,7 @@ process GET_NOVEL_TRANSCRIPT {
         'https://depot.galaxyproject.org/singularity/python:3.8.3' :
         'quay.io/biocontainers/python:3.8.3' }"
 
-  
+
   input:
     tuple val(meta), path(ids_list), path(stringtie_gtf)
   output:
@@ -47,7 +47,7 @@ process GET_NOVEL_TRANSCRIPT {
     """
     set -euo pipefail
     python3 ${projectDir}/bin/get_transcript.py "$ids_list" "$stringtie_gtf" "${meta.id}_novel_isoforms.gtf"
-    
+
     """
 }
 
@@ -81,7 +81,7 @@ process TRANSDECODER_LONGORFS_PREDICT {
     shopt -s nullglob
 
     rm -rf ./*.transdecoder_dir
-    
+
     TransDecoder.LongOrfs -t ${fasta} -m 30 -O .
 
     TransDecoder.Predict -t "${fasta}" --retain_long_orfs_length 30 -O .
@@ -119,7 +119,7 @@ workflow GENERATE_NOVEL_ISOFORM_DB {
 
     def ch_genome = Channel.value(tuple([id:'genome'], file(fasta_path, checkIfExists:true), file(fai_path, checkIfExists:true)))
     def ch_refgtf = Channel.value(tuple([id:'refgtf'], file(ref_gtf, checkIfExists:true)))
-    
+
     // 1) Run gffcompare
     GFFCOMPARE(annotated_gtf, ch_genome, ch_refgtf)
 

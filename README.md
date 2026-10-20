@@ -46,15 +46,14 @@ SAMPLE_C,,,,,/data/rna/SAMPLE_C.cram,/data/rna/SAMPLE_C.cram.crai,/data/dia/SAMP
 
 Column notes:
 
-| Column | Required | Description |
-| --- | --- | --- |
-| `sample` | Yes | Sample identifier. Multiple FASTQ lanes for the same sample may reuse the same name. |
-| `fastq_1`, `fastq_2` | Conditional | RNA-seq FASTQs. Use these if starting from raw reads. |
-| `bam`, `bai` | Conditional | Coordinate-sorted BAM and index if alignment is already done. |
-| `cram`, `crai` | Conditional | CRAM and CRAI if starting from CRAM instead of BAM. |
-| `dia_raw` | Yes | DIA-MS raw path for the sample, for example a timsTOF `.d` directory or vendor raw file. |
-| `strandedness` | Yes | Passed to StringTie. Supported values are `forward`, `reverse`, and `unstranded`. |
-
+| Column               | Required    | Description                                                                              |
+| -------------------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `sample`             | Yes         | Sample identifier. Multiple FASTQ lanes for the same sample may reuse the same name.     |
+| `fastq_1`, `fastq_2` | Conditional | RNA-seq FASTQs. Use these if starting from raw reads.                                    |
+| `bam`, `bai`         | Conditional | Coordinate-sorted BAM and index if alignment is already done.                            |
+| `cram`, `crai`       | Conditional | CRAM and CRAI if starting from CRAM instead of BAM.                                      |
+| `dia_raw`            | Yes         | DIA-MS raw path for the sample, for example a timsTOF `.d` directory or vendor raw file. |
+| `strandedness`       | Yes         | Passed to StringTie. Supported values are `forward`, `reverse`, and `unstranded`.        |
 
 ### Required reference and workflow parameters
 
@@ -107,7 +106,7 @@ nextflow run bzhanglab/pgdia \
   --read_length 151 \
   --protein_reference_db /path/to/reference_proteome.fa \
   --dbsnp /path/to/dbsnp.vcf.gz \
-  --known_indels /path/to/known_indels.vcf.gz 
+  --known_indels /path/to/known_indels.vcf.gz
 ```
 
 Useful runtime options:
@@ -168,14 +167,14 @@ If you do not want to use that bundle, provide explicit reference files with par
 
 Published results are written under `--outdir` and typically include:
 
-| Path | Contents |
-| --- | --- |
-| `reports/` | MultiQC output and annotation summary reports |
-| `pipeline_info/` | Nextflow execution metadata, params, and software versions |
-| `annotation/<sample>/` | Annotated and decompressed VCF outputs from the RNA variant branch |
-| `stringtie/` | Per-sample StringTie GTF assemblies |
-| `isoform_db/<sample>/` | Predicted peptide FASTA from novel isoforms |
-| `protein_db/<sample>/` | `<sample>_combined_protein_db.fa` and `<sample>_novel_protein_db.fa` |
+| Path                     | Contents                                                                                                                      |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `reports/`               | MultiQC output and annotation summary reports                                                                                 |
+| `pipeline_info/`         | Nextflow execution metadata, params, and software versions                                                                    |
+| `annotation/<sample>/`   | Annotated and decompressed VCF outputs from the RNA variant branch                                                            |
+| `stringtie/`             | Per-sample StringTie GTF assemblies                                                                                           |
+| `isoform_db/<sample>/`   | Predicted peptide FASTA from novel isoforms                                                                                   |
+| `protein_db/<sample>/`   | `<sample>_combined_protein_db.fa` and `<sample>_novel_protein_db.fa`                                                          |
 | `diann_output/<sample>/` | DIA-NN parquet report, matrices parquet, per-run transition XIC parquet files, and postprocessed novel/reference TSV matrices |
 
 DIA-NN is run with `--xic`, which publishes transition-level chromatograms as
@@ -184,7 +183,6 @@ DIA-NN is run with `--xic`, which publishes transition-level chromatograms as
 these files, export its transition-level values, and generate per-run and
 combined XIC plots. See [the output documentation](docs/output.md#dia-nn-results-and-transition-xics)
 for the input columns and a reproducible command.
-
 
 ## Credits
 

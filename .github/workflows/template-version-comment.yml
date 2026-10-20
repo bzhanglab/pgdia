@@ -4,6 +4,10 @@ name: nf-core template version comment
 
 on: pull_request_target
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   template_version:
     runs-on: ubuntu-latest
@@ -33,7 +37,7 @@ jobs:
         if: |
           contains(env.OUTPUT, 'nf-core')
         with:
-          repo-token: ${{ secrets.NF_CORE_BOT_AUTH_TOKEN }}
+          repo-token: ${{ github.token }}
           allow-repeats: false
           message: |
             > [!WARNING]

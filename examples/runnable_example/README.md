@@ -20,16 +20,16 @@ still run and can be inspected in the Nextflow work directory.
 
 ## Included inputs
 
-| File | Purpose |
-| --- | --- |
-| `samplesheet.csv` | One-row PG-DIA input sheet linking the RNA-seq and DIA-MS files |
-| `data/simulated_rna.bam` and `.bai` | Coordinate-sorted RNA-seq alignment and index |
-| `data/simulated_genome.fasta`, `.fai`, and `.dict` | Small reference genome and indexes |
-| `data/simulated_annotation.gtf` | Matching gene and transcript annotation |
-| `data/simulated_vep_annotated.vcf` | One pre-annotated missense variant for database construction |
-| `data/simulated_dia.mzML` | 71 MS1 and 284 MS2 centroided scans in four DIA windows |
-| `data/simulated_dia_ground_truth.tsv` | Ten peptide sequences and their simulated precursor/retention-time values |
-| `data/simulated_proteins.fasta` | Reference proteins containing the simulated DIA peptides |
+| File                                               | Purpose                                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------------------- |
+| `samplesheet.csv`                                  | One-row PG-DIA input sheet linking the RNA-seq and DIA-MS files           |
+| `data/simulated_rna.bam` and `.bai`                | Coordinate-sorted RNA-seq alignment and index                             |
+| `data/simulated_genome.fasta`, `.fai`, and `.dict` | Small reference genome and indexes                                        |
+| `data/simulated_annotation.gtf`                    | Matching gene and transcript annotation                                   |
+| `data/simulated_vep_annotated.vcf`                 | One pre-annotated missense variant for database construction              |
+| `data/simulated_dia.mzML`                          | 71 MS1 and 284 MS2 centroided scans in four DIA windows                   |
+| `data/simulated_dia_ground_truth.tsv`              | Ten peptide sequences and their simulated precursor/retention-time values |
+| `data/simulated_proteins.fasta`                    | Reference proteins containing the simulated DIA peptides                  |
 
 ## Step 1: install the runtime
 

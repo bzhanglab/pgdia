@@ -45,14 +45,14 @@ TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,,,,,reverse
 TREATMENT_REP4,,,,/aligned/TREATMENT_REP4.markdup.bam,/aligned/TREATMENT_REP4.markdup.bam.bai,unstranded
 ```
 
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz". Leave blank if providing a BAM.                            |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz". Leave blank for single-end or BAM runs.                    |
-| `bam`     | (Optional) Full path to a coordinate-sorted BAM generated upstream. When specified, alignment is skipped and this BAM enters the workflow.                                            |
-| `bai`     | (Optional but recommended) Index corresponding to the BAM provided in `bam`. Must end in `.bai`.                                                                                       |
-| `strandedness` | Optional flag consumed by StringTie. Allowed values: `forward`, `reverse`, or `unstranded`. Defaults to `unstranded` when omitted.                                               |
+| Column         | Description                                                                                                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sample`       | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
+| `fastq_1`      | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz". Leave blank if providing a BAM.                             |
+| `fastq_2`      | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz". Leave blank for single-end or BAM runs.                     |
+| `bam`          | (Optional) Full path to a coordinate-sorted BAM generated upstream. When specified, alignment is skipped and this BAM enters the workflow.                                             |
+| `bai`          | (Optional but recommended) Index corresponding to the BAM provided in `bam`. Must end in `.bai`.                                                                                       |
+| `strandedness` | Optional flag consumed by StringTie. Allowed values: `forward`, `reverse`, or `unstranded`. Defaults to `unstranded` when omitted.                                                     |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 

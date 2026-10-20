@@ -2,14 +2,32 @@ repository_type: pipeline
 
 nf_core_version: 3.3.2
 
-lint: {}
+lint:
+  # This lab workflow retains its public resource flags and lab repository URLs.
+  nextflow_config:
+    - manifest.name
+    - manifest.homePage
+    - params.enable_conda
+    - params.max_cpus
+    - params.max_memory
+    - params.max_time
+  files_exist:
+    - docs/images/nf-core-pgdia_logo_light.png
+    - docs/images/nf-core-pgdia_logo_dark.png
+  files_unchanged:
+    - .github/workflows/linting.yml
+  # ElementTree namespace expressions are Python f-strings, not Jinja templates.
+  template_strings:
+    - examples/runnable_example/generate_simulated_dia.py
+  multiqc_config:
+    - report_comment
 
 template:
-  org: nf-core
-  name: PGDIA
+  org: bzhanglab
+  name: pgdia
   description: A workflow to generate customized protein databases from RNA-Seq.
   author: Wenrong Chen
-  version: 1.0.0dev
+  version: "1.0"
   force: true
   outdir: .
-  is_nfcore: true
+  is_nfcore: false

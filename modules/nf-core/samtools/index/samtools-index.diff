@@ -1,0 +1,87 @@
+Changes in component 'nf-core/samtools/index'
+Changes in 'samtools/index/meta.yml':
+--- modules/nf-core/samtools/index/meta.yml
++++ modules/nf-core/samtools/index/meta.yml
+@@ -25,10 +25,9 @@
+     - input:
+         type: file
+         description: input file
+-        ontologies: []
+ output:
+-  bai:
+-    - - meta:
++  - bai:
++      - meta:
+           type: map
+           description: |
+             Groovy Map containing sample information
+@@ -37,9 +36,8 @@
+           type: file
+           description: BAM/CRAM/SAM index file
+           pattern: "*.{bai,crai,sai}"
+-          ontologies: []
+-  csi:
+-    - - meta:
++  - csi:
++      - meta:
+           type: map
+           description: |
+             Groovy Map containing sample information
+@@ -48,9 +46,8 @@
+           type: file
+           description: CSI index file
+           pattern: "*.{csi}"
+-          ontologies: []
+-  crai:
+-    - - meta:
++  - crai:
++      - meta:
+           type: map
+           description: |
+             Groovy Map containing sample information
+@@ -59,14 +56,11 @@
+           type: file
+           description: BAM/CRAM/SAM index file
+           pattern: "*.{bai,crai,sai}"
+-          ontologies: []
+-  versions:
+-    - versions.yml:
+-        type: file
+-        description: File containing software versions
+-        pattern: "versions.yml"
+-        ontologies:
+-          - edam: http://edamontology.org/format_3750 # YAML
++  - versions:
++      - versions.yml:
++          type: file
++          description: File containing software versions
++          pattern: "versions.yml"
+ authors:
+   - "@drpatelh"
+   - "@ewels"
+
+Changes in 'samtools/index/main.nf':
+--- modules/nf-core/samtools/index/main.nf
++++ modules/nf-core/samtools/index/main.nf
+@@ -4,8 +4,8 @@
+ 
+     conda "${moduleDir}/environment.yml"
+     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+-        'https://depot.galaxyproject.org/singularity/samtools:1.22.1--h96c455f_0' :
+-        'biocontainers/samtools:1.22.1--h96c455f_0' }"
++        'https://depot.galaxyproject.org/singularity/samtools:1.21--h50ea8bc_0' :
++        'biocontainers/samtools:1.21--h50ea8bc_0' }"
+ 
+     input:
+     tuple val(meta), path(input)
+@@ -24,7 +24,7 @@
+     """
+     samtools \\
+         index \\
+-        -@ ${task.cpus} \\
++        -@ ${task.cpus-1} \\
+         $args \\
+         $input
+ 
+
+************************************************************

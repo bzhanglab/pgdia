@@ -89,7 +89,7 @@ workflow RNAVAR_MINI {
         .groupTuple()
         .map { samplesheet -> checkSamplesAfterGrouping(samplesheet) }
         .branch { meta, fq, bam, bai, cram, crai, vcf, tbi, dia_raw ->
-            // inject dia_raw into meta 
+            // inject dia_raw into meta
             def meta2 = meta + [ dia_raw: dia_raw ]
 
             single   : fq && fq.size() == 1
@@ -148,7 +148,7 @@ workflow RNAVAR_MINI {
     def interval_list = GATK4_BEDTOINTERVALLIST.out.interval_list
     ch_versions = ch_versions.mix(GATK4_BEDTOINTERVALLIST.out.versions)
 
-    
+
 
     //
     // MODULE: Scatter one interval-list into many interval-files using GATK4 IntervalListTools
@@ -213,12 +213,12 @@ workflow RNAVAR_MINI {
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.flagstat.collect{it[1]}.ifEmpty([]))
         ch_reports                = ch_reports.mix(BAM_MARKDUPLICATES_PICARD.out.idxstats.collect{it[1]}.ifEmpty([]))
         ch_versions               = ch_versions.mix(BAM_MARKDUPLICATES_PICARD.out.versions)
-    
+
         //
         // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
         // Splits reads that contain Ns in their cigar string(e.g. spanning splicing events in RNAseq data).
         //
-        
+
 
         SPLITNCIGAR(genome_bam_bai,
             fasta,
@@ -335,7 +335,7 @@ workflow RNAVAR_MINI {
         ch_versions  = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions)
 
         def haplotypecaller_vcf = Channel.empty()
-        
+
         if (!params.generate_gvcf){
             //
             // MODULE: MergeVCFS from GATK4
@@ -411,9 +411,9 @@ workflow RNAVAR_MINI {
 
                 VCF_DECOMPRESS(VCF_ANNOTATE_ALL.out.vcf_ann)
                 annotated_vcf_ch = VCF_DECOMPRESS.out.vcf
-                
 
-                
+
+
             }
 
         } else {
@@ -446,7 +446,7 @@ workflow RNAVAR_MINI {
     // Collate and save software ch_versions
 
     def collated_versions = softwareVersionsToYAML(ch_versions).collectFile(storeDir: "${params.outdir}/pipeline_info", name: 'nf_core_pipeline_software_mqc_versions.yml', sort: true, newLine: true)
-    
+
     //
     // MODULE: MultiQC
     // Present summary of reads, alignment, duplicates, BSQR stats for all samples as well as workflow summary/parameters as single report

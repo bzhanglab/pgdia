@@ -243,7 +243,7 @@ workflow PGDIA {
 
       variant_fasta = GENERATE_VARIANT_DB.out.variant_db
           .map { meta, fa -> tuple(meta, fa) }                // tuple(val(meta), var_modified_peptides.fa)
-      
+
 
       // 2. StringTie on markdup BAMs from RNAVAR
       RUN_STRINGTIE(
@@ -259,7 +259,7 @@ workflow PGDIA {
       isoform_tmap = isoform_results.isoform_tmap
 
       //def isoform_fasta_gated = isoform_fasta.after(vcf_done)
-      
+
       //vcf_done.view { "VCF_DONE=$it ; class=${it.getClass()}" }
       //isoform_fasta_gated.view { "ISOFORM_GATED = $it ; class=${it.getClass()}" }
 
@@ -282,7 +282,7 @@ workflow PGDIA {
           .map { meta, var_fa, novel_fa ->
               tuple(meta, var_fa, novel_fa)
           }
-      
+
       def ch_protein_ref = Channel.value(
         file(params.protein_reference_db, checkIfExists: true)
       )
