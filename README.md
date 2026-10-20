@@ -128,11 +128,12 @@ unshufflable targets are excluded with reasons. The seed defaults to `20260817`;
 `--entrapment_missed_cleavages` defaults to `1` and accepts `0`, `1`, or `2`.
 
 The separate DIA-NN search disables cleavage and methionine excision, retains
-search decoys, and treats entrapments as search targets. By default, complete
-`Global.Q.Value` score ties enter cumulative D/T together and reverse cumulative
-minima give empirical precursor q-values. `--entrapment_cutoff` defaults to
-`0.001`. Use `--entrapment_q_column Global.Peptidoform.Q.Value` to change the
-ranking, or `--entrapment_recalculate_q false` to use the supplied q-values.
+search decoys, and treats entrapments as search targets. The paired FDP assessment
+uses `Global.Q.Value` as its q-value source. By default, complete `Global.Q.Value`
+score ties enter cumulative D/T together and reverse cumulative minima give
+empirical precursor q-values. `--entrapment_cutoff` defaults to `0.001`. Use
+`--entrapment_recalculate_q false` to apply the cutoff directly to the supplied
+`Global.Q.Value` values.
 
 The assessment collapses charges, modifications, and runs to unmodified peptide
 sequences. It reports `(N_E + N_E_only + 2*N_E_better_both)/(N_T + N_E)` for the

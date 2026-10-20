@@ -340,8 +340,8 @@ workflow {
         if (!(params.entrapment_missed_cleavages in [0, 1, 2])) {
             error('--entrapment_missed_cleavages must be 0, 1 or 2')
         }
-        if (!(params.entrapment_q_column ==~ /[A-Za-z][A-Za-z0-9_.]*/)) {
-            error('Invalid --entrapment_q_column')
+        if (params.entrapment_q_column != 'Global.Q.Value') {
+            error('--entrapment_q_column must be Global.Q.Value')
         }
         if (!(params.entrapment_seed.toString() ==~ /-?\d+/)) {
             error('--entrapment_seed must be an integer')

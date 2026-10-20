@@ -84,9 +84,9 @@
                 },
                 "entrapment_q_column": {
                     "type": "string",
-                    "pattern": "^[A-Za-z][A-Za-z0-9_.]*$",
+                    "enum": ["Global.Q.Value"],
                     "default": "Global.Q.Value",
-                    "description": "Lower-is-better DIA-NN q-value column used for precursor ranking."
+                    "description": "DIA-NN q-value source for paired FDP assessment; fixed to Global.Q.Value."
                 },
                 "entrapment_recalculate_q": {
                     "type": "boolean",

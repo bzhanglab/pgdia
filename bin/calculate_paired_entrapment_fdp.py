@@ -73,6 +73,8 @@ def count_fdp(pairs, cutoff):
 
 def calculate(report, pair_file, q_column='Global.Q.Value', cutoff=0.001,
               recalculate_q=False, rank_column=None):
+    if q_column != 'Global.Q.Value':
+        raise ValueError('Paired FDP requires the Global.Q.Value column')
     if not 0 < cutoff < 1:
         raise ValueError('Cutoff must be between 0 and 1')
     rank_column = rank_column or q_column
@@ -161,7 +163,7 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--pairs', type=Path, required=True)
     parser.add_argument('--output-prefix', type=Path, required=True)
-    parser.add_argument('--q-column', default='Global.Q.Value')
+    parser.add_argument('--q-column', choices=['Global.Q.Value'], default='Global.Q.Value')
     parser.add_argument('--rank-column', help='Lower-is-better score for ordering accepted partners')
     parser.add_argument('--cutoff', type=float, default=0.001)
     parser.add_argument('--recalculate-q-values', action='store_true')
