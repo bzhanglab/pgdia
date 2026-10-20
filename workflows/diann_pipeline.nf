@@ -73,12 +73,13 @@ process RUN_DIANN {
   tag { meta.id }
   cpus params.diann_cpus
 
-  publishDir { "${params.outdir}/diann_output/${meta.id}" }, mode: 'copy', overwrite: true
+  publishDir { "${params.outdir}/${peptide_database ? 'paired_entrapment' : 'diann_output'}/${meta.id}" }, mode: 'copy', overwrite: true
   container { diann_image_name }
 
   input:
     val(diann_image_name)
     tuple val(meta), path(protein_db_fa), path(dia_raw)
+    val(peptide_database)
 
   output:
     tuple val(meta), path("${meta.id}_report.parquet"), emit: diann_report
@@ -87,6 +88,7 @@ process RUN_DIANN {
     path("${meta.id}_report_xic"), emit: diann_xic, optional: true
 
   script:
+    def digestion = peptide_database ? '--cut "" --missed-cleavages 0' : '--met-excision --cut K*,R* --missed-cleavages 1'
     """
     set -euo pipefail
 
@@ -104,15 +106,13 @@ process RUN_DIANN {
       --fasta-search \\
       --min-fr-mz 300 \\
       --max-fr-mz 1500 \\
-      --met-excision \\
       --min-pep-len 7 \\
       --max-pep-len 30 \\
       --min-pr-mz 300 \\
       --max-pr-mz 1700 \\
       --min-pr-charge 1 \\
       --max-pr-charge 4 \\
-      --cut K*,R* \\
-      --missed-cleavages 1 \\
+      ${digestion} \\
       --unimod4 \\
       --var-mods 1 \\
       --var-mod UniMod:35,15.994915,M \\
@@ -182,7 +182,7 @@ workflow DIANN_PIPELINE {
         tuple(meta, protein_db_fa, dia_raw)
       }
 
-    def run_diann_out = RUN_DIANN(diann_image_name_ch, run_diann_input_ch)
+    def run_diann_out = RUN_DIANN(diann_image_name_ch, run_diann_input_ch, false)
     def diann_out_ch = run_diann_out.diann_report
     def postprocess_meta_ch = samples_ch
       .map { meta, protein_db_fa_unused, dia_raw_unused, novel_fasta, isoform_annotation ->
@@ -201,6 +201,7 @@ workflow DIANN_PIPELINE {
 
   emit:
     diann_out = diann_out_ch
+    diann_image_name = diann_image_name_ch
     diann_xic = run_diann_out.diann_xic
     diann_postprocessed_novel = postprocessed_novel_matrix_ch
     diann_postprocessed_ref = postprocessed_ref_matrix_ch

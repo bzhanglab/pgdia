@@ -46,15 +46,14 @@ SAMPLE_C,,,,,/data/rna/SAMPLE_C.cram,/data/rna/SAMPLE_C.cram.crai,/data/dia/SAMP
 
 Column notes:
 
-| Column | Required | Description |
-| --- | --- | --- |
-| `sample` | Yes | Sample identifier. Multiple FASTQ lanes for the same sample may reuse the same name. |
-| `fastq_1`, `fastq_2` | Conditional | RNA-seq FASTQs. Use these if starting from raw reads. |
-| `bam`, `bai` | Conditional | Coordinate-sorted BAM and index if alignment is already done. |
-| `cram`, `crai` | Conditional | CRAM and CRAI if starting from CRAM instead of BAM. |
-| `dia_raw` | Yes | DIA-MS raw path for the sample, for example a timsTOF `.d` directory or vendor raw file. |
-| `strandedness` | Yes | Passed to StringTie. Supported values are `forward`, `reverse`, and `unstranded`. |
-
+| Column               | Required    | Description                                                                              |
+| -------------------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `sample`             | Yes         | Sample identifier. Multiple FASTQ lanes for the same sample may reuse the same name.     |
+| `fastq_1`, `fastq_2` | Conditional | RNA-seq FASTQs. Use these if starting from raw reads.                                    |
+| `bam`, `bai`         | Conditional | Coordinate-sorted BAM and index if alignment is already done.                            |
+| `cram`, `crai`       | Conditional | CRAM and CRAI if starting from CRAM instead of BAM.                                      |
+| `dia_raw`            | Yes         | DIA-MS raw path for the sample, for example a timsTOF `.d` directory or vendor raw file. |
+| `strandedness`       | Yes         | Passed to StringTie. Supported values are `forward`, `reverse`, and `unstranded`.        |
 
 ### Required reference and workflow parameters
 
@@ -107,7 +106,7 @@ nextflow run bzhanglab/pgdia \
   --read_length 151 \
   --protein_reference_db /path/to/reference_proteome.fa \
   --dbsnp /path/to/dbsnp.vcf.gz \
-  --known_indels /path/to/known_indels.vcf.gz 
+  --known_indels /path/to/known_indels.vcf.gz
 ```
 
 Useful runtime options:
@@ -117,6 +116,31 @@ Useful runtime options:
 - `--diann_image` to point to a DIA-NN container image name or tarball; download the [DIA-NN 2.0.2 image](https://aws2.zhang-lab.org/diann-2.0.2.tar.gz)
 - `--diann_bin` if the DIA-NN executable path inside the image differs from the default
 - `--diann_cpus` to control DIA-NN threads
+
+### Paired-entrapment assessment
+
+Add `--paired_entrapment` to run a separate per-sample assessment alongside the
+standard search. PG-DIA digests the reference and novel FASTAs into 7–30 residue
+peptides, collapses I/L-equivalent novel identities, and generates one random
+composition-preserving shuffle per retained novel target with its final residue
+fixed. Shuffles matching anywhere in either input FASTA are rejected. Proven
+unshufflable targets are excluded with reasons. The seed defaults to `20260817`;
+`--entrapment_missed_cleavages` defaults to `1` and accepts `0`, `1`, or `2`.
+
+The separate DIA-NN search disables cleavage and methionine excision, retains
+search decoys, and treats entrapments as search targets. By default, complete
+`Global.Q.Value` score ties enter cumulative D/T together and reverse cumulative
+minima give empirical precursor q-values. `--entrapment_cutoff` defaults to
+`0.001`. Use `--entrapment_q_column Global.Peptidoform.Q.Value` to change the
+ranking, or `--entrapment_recalculate_q false` to use the supplied q-values.
+
+The assessment collapses charges, modifications, and runs to unmodified peptide
+sequences. It reports `(N_E + N_E_only + 2*N_E_better_both)/(N_T + N_E)` for the
+combined novel-target/entrapment list. Tied accepted partners cause an error
+because their ordering is unresolved. This FDP estimate does not establish
+novel-target-only FDR at the nominal precursor cutoff. Outputs, including the
+search report, pair mapping, input hashes, exclusions, summary, and method metadata,
+are published under `paired_entrapment/<sample>/`.
 
 ## Reference configuration
 
@@ -143,14 +167,14 @@ If you do not want to use that bundle, provide explicit reference files with par
 
 Published results are written under `--outdir` and typically include:
 
-| Path | Contents |
-| --- | --- |
-| `reports/` | MultiQC output and annotation summary reports |
-| `pipeline_info/` | Nextflow execution metadata, params, and software versions |
-| `annotation/<sample>/` | Annotated and decompressed VCF outputs from the RNA variant branch |
-| `stringtie/` | Per-sample StringTie GTF assemblies |
-| `isoform_db/<sample>/` | Predicted peptide FASTA from novel isoforms |
-| `protein_db/<sample>/` | `<sample>_combined_protein_db.fa` and `<sample>_novel_protein_db.fa` |
+| Path                     | Contents                                                                                                                      |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `reports/`               | MultiQC output and annotation summary reports                                                                                 |
+| `pipeline_info/`         | Nextflow execution metadata, params, and software versions                                                                    |
+| `annotation/<sample>/`   | Annotated and decompressed VCF outputs from the RNA variant branch                                                            |
+| `stringtie/`             | Per-sample StringTie GTF assemblies                                                                                           |
+| `isoform_db/<sample>/`   | Predicted peptide FASTA from novel isoforms                                                                                   |
+| `protein_db/<sample>/`   | `<sample>_combined_protein_db.fa` and `<sample>_novel_protein_db.fa`                                                          |
 | `diann_output/<sample>/` | DIA-NN parquet report, matrices parquet, per-run transition XIC parquet files, and postprocessed novel/reference TSV matrices |
 
 DIA-NN is run with `--xic`, which publishes transition-level chromatograms as
@@ -159,7 +183,6 @@ DIA-NN is run with `--xic`, which publishes transition-level chromatograms as
 these files, export its transition-level values, and generate per-run and
 combined XIC plots. See [the output documentation](docs/output.md#dia-nn-results-and-transition-xics)
 for the input columns and a reproducible command.
-
 
 ## Credits
 

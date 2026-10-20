@@ -1,18 +1,18 @@
-include { GFFREAD } from '../modules/nf-core/gffread/main' 
+include { GFFREAD } from '../modules/nf-core/gffread/main'
 
 workflow GENERATE_VARIANT_DB {
-    
+
     take:
     annotated_vcf   // channel: [ val(meta), path(vcf) ]  (meta.id is sample id)
 
     main:
     def ref_fasta = params.fasta ?: (params.genomes && params.genome && params.genomes.containsKey(params.genome) ? params.genomes[params.genome].fasta : null)
     def ref_gtf   = params.gtf   ?: (params.genomes && params.genome && params.genomes.containsKey(params.genome) ? params.genomes[params.genome].gtf   : null)
-    
+
     def ch_protein_ref = Channel.value(
           file(params.protein_reference_db, checkIfExists: true)
         )
-    
+
     if (!ref_fasta) {
         error("Missing required reference fasta: set --fasta or provide a genome entry with a fasta path.")
     }
@@ -27,7 +27,7 @@ workflow GENERATE_VARIANT_DB {
     GFFREAD(
       gffread_in_ch,
       ch_ref_fasta)
-    
+
     def ch_input_fa = GFFREAD.out.gffread_fasta
       .map { _meta, fa -> fa }
 
@@ -71,10 +71,10 @@ process GENERATE_VAR_PEPTIDES {
     """
 }
 
- 
+
 process ANNOTATE_VAR_PEPTIDES {
   tag "${meta.id}"
-  
+
   conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
   container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/python:3.8.3' :
@@ -107,4 +107,3 @@ process ANNOTATE_VAR_PEPTIDES {
       "${meta.id}_var_modified_peptides.fa"
     """
 }
-

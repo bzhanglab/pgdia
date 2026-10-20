@@ -104,7 +104,7 @@ def main() -> int:
 
     print(f"Total number of novel records: {novel_total}")
     return 0
-    
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

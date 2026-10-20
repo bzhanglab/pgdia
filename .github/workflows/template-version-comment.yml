@@ -1,11 +1,15 @@
 name: nf-core template version comment
-# This workflow is triggered on PRs to check if the pipeline template version matches the latest nf-core version.
-# It posts a comment to the PR, even if it comes from a fork.
+# Optional template-version comments are disabled for this lab workflow.
 
 on: pull_request_target
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   template_version:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out pipeline code
@@ -33,7 +37,7 @@ jobs:
         if: |
           contains(env.OUTPUT, 'nf-core')
         with:
-          repo-token: ${{ secrets.NF_CORE_BOT_AUTH_TOKEN }}
+          repo-token: ${{ github.token }}
           allow-repeats: false
           message: |
             > [!WARNING]
