@@ -43,6 +43,46 @@
                 }
             }
         },
+        "paired_entrapment_options": {
+            "title": "Paired-entrapment assessment",
+            "type": "object",
+            "properties": {
+                "paired_entrapment": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Build and search a separate 1:1 shuffled peptide database and assess paired FDP per sample."
+                },
+                "entrapment_seed": {
+                    "type": "integer",
+                    "default": 20260817,
+                    "description": "Reproducible shuffle seed, combined with the sample identifier."
+                },
+                "entrapment_missed_cleavages": {
+                    "type": "integer",
+                    "enum": [0, 1, 2],
+                    "default": 1,
+                    "description": "Missed cleavages for in-silico digestion before the peptide database search."
+                },
+                "entrapment_cutoff": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "exclusiveMaximum": 1,
+                    "default": 0.001,
+                    "description": "Nominal precursor q-value cutoff for the paired peptide list."
+                },
+                "entrapment_q_column": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_.]*$",
+                    "default": "Global.Q.Value",
+                    "description": "Lower-is-better DIA-NN q-value column used for precursor ranking."
+                },
+                "entrapment_recalculate_q": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Recalculate empirical precursor q-values from complete score ties and all retained decoys before assessing FDP."
+                }
+            }
+        },
         "reference_genome_options": {
             "title": "Reference genome options",
             "type": "object",
@@ -253,6 +293,9 @@
         }
     },
     "allOf": [
+        {
+            "$ref": "#/$defs/paired_entrapment_options"
+        },
         {
             "$ref": "#/$defs/input_output_options"
         },

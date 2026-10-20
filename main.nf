@@ -35,6 +35,7 @@ include { GENERATE_VARIANT_DB         } from './workflows/variant_db'
 include { GENERATE_NOVEL_ISOFORM_DB   } from './workflows/novel_isoform_db'
 include { COMBINE_PROTEIN_DBS         } from './workflows/combine_db'
 include { DIANN_PIPELINE              } from './workflows/diann_pipeline'
+include { PAIRED_ENTRAPMENT           } from './workflows/paired_entrapment'
 
 
 
@@ -317,14 +318,35 @@ workflow PGDIA {
       def diann_postprocessed_novel_ch = diann_results.diann_postprocessed_novel
       def diann_postprocessed_ref_ch = diann_results.diann_postprocessed_ref
 
+      def paired_summary_ch = Channel.empty()
+      if (params.paired_entrapment) {
+          PAIRED_ENTRAPMENT(diann_input_ch, diann_results.diann_image_name, ch_protein_ref)
+          paired_summary_ch = PAIRED_ENTRAPMENT.out.summary
+      }
+
 
     emit:
       diann_report = diann_out_ch
       diann_postprocessed_novel_report = diann_postprocessed_novel_ch
       diann_postprocessed_ref_report = diann_postprocessed_ref_ch
+      paired_entrapment_summary = paired_summary_ch
 }
 
 workflow {
+    if (params.paired_entrapment) {
+        if (!(params.entrapment_cutoff > 0 && params.entrapment_cutoff < 1)) {
+            error('--entrapment_cutoff must be between 0 and 1')
+        }
+        if (!(params.entrapment_missed_cleavages in [0, 1, 2])) {
+            error('--entrapment_missed_cleavages must be 0, 1 or 2')
+        }
+        if (!(params.entrapment_q_column ==~ /[A-Za-z][A-Za-z0-9_.]*/)) {
+            error('Invalid --entrapment_q_column')
+        }
+        if (!(params.entrapment_seed.toString() ==~ /-?\d+/)) {
+            error('--entrapment_seed must be an integer')
+        }
+    }
     PIPELINE_INITIALISATION(
         params.version,
         params.validate_params,

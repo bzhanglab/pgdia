@@ -118,6 +118,31 @@ Useful runtime options:
 - `--diann_bin` if the DIA-NN executable path inside the image differs from the default
 - `--diann_cpus` to control DIA-NN threads
 
+### Paired-entrapment assessment
+
+Add `--paired_entrapment` to run a separate per-sample assessment alongside the
+standard search. PG-DIA digests the reference and novel FASTAs into 7–30 residue
+peptides, collapses I/L-equivalent novel identities, and generates one random
+composition-preserving shuffle per retained novel target with its final residue
+fixed. Shuffles matching anywhere in either input FASTA are rejected. Proven
+unshufflable targets are excluded with reasons. The seed defaults to `20260817`;
+`--entrapment_missed_cleavages` defaults to `1` and accepts `0`, `1`, or `2`.
+
+The separate DIA-NN search disables cleavage and methionine excision, retains
+search decoys, and treats entrapments as search targets. By default, complete
+`Global.Q.Value` score ties enter cumulative D/T together and reverse cumulative
+minima give empirical precursor q-values. `--entrapment_cutoff` defaults to
+`0.001`. Use `--entrapment_q_column Global.Peptidoform.Q.Value` to change the
+ranking, or `--entrapment_recalculate_q false` to use the supplied q-values.
+
+The assessment collapses charges, modifications, and runs to unmodified peptide
+sequences. It reports `(N_E + N_E_only + 2*N_E_better_both)/(N_T + N_E)` for the
+combined novel-target/entrapment list. Tied accepted partners cause an error
+because their ordering is unresolved. This FDP estimate does not establish
+novel-target-only FDR at the nominal precursor cutoff. Outputs, including the
+search report, pair mapping, input hashes, exclusions, summary, and method metadata,
+are published under `paired_entrapment/<sample>/`.
+
 ## Reference configuration
 
 The bundled `conf/igenomes.config` defines specific `--genome GRCh38` entry pointing to:

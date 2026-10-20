@@ -57,6 +57,21 @@ modification annotation. Fragment ions containing the optional variant
 position are marked with `*`; this annotation identifies ions whose sequence
 span includes the residue and is not itself an independent localization score.
 
+### Paired-entrapment assessment
+
+With `--paired_entrapment`, `paired_entrapment/<sample>/` contains:
+
+- `<sample>.fasta`: reference peptide background plus 1:1 novel/shuffled pairs.
+- `<sample>.pairs.tsv`: peptide sequences, paired accessions, and target roles.
+- `<sample>.excluded.tsv`: unshufflable target peptides and exclusion reasons.
+- `<sample>.manifest.json`: input SHA-256 hashes, seed, digestion, and search settings.
+- `<sample>_report.parquet`: unfiltered DIA-NN search report including decoys.
+- `<sample>_summary.tsv`: accepted target/entrapment counts, paired numerator, and FDP.
+- `<sample>_method.json`: assessment settings, scope, formula, and provenance.
+
+The estimate applies to the combined paired novel-target/entrapment list. An
+empty accepted list has undefined FDP (blank in TSV and `null` in JSON).
+
 ### FastQC
 
 <details markdown="1">
