@@ -83,17 +83,19 @@ jobs:
         env:
           NXF_SINGULARITY_CACHEDIR: ./singularity_container_images
         run: |
-          container_system=none
+          container_args=(--container-system none)
           if [[ "$DOWNLOAD_CONTAINERS" == 'true' ]]; then
-            container_system=singularity
+            container_args=(
+              --container-system singularity
+              --container-library quay.io -l docker.io -l community.wave.seqera.io/library/
+              --container-cache-utilisation amend
+            )
           fi
           nf-core pipelines download ${{ needs.configure.outputs.REPO_LOWERCASE }} \
           --revision ${{ needs.configure.outputs.REPO_BRANCH }} \
           --outdir ./${{ needs.configure.outputs.REPOTITLE_LOWERCASE }} \
           --compress "none" \
-          --container-system "$container_system" \
-          --container-library "quay.io" -l "docker.io" -l "community.wave.seqera.io/library/" \
-          --container-cache-utilisation 'amend' \
+          "${container_args[@]}" \
           --download-configuration 'yes'
 
       - name: Inspect download
